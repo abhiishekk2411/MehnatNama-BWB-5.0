@@ -10,6 +10,7 @@ import { WageCheckPage } from '../pages/WageCheckPage';
 import { ConfirmationsPage } from '../pages/ConfirmationsPage';
 import { ReportsPage } from '../pages/ReportsPage';
 import { KnowYourRightsPage } from '../pages/KnowYourRightsPage';
+import { SettingsPage } from '../pages/SettingsPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 
 import { ContractorConfirmPage } from '../pages/public/ContractorConfirmPage';
@@ -34,6 +35,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="confirmations" element={<ConfirmationsPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="know-your-rights" element={<KnowYourRightsPage />} />
+        <Route path="settings" element={<SettingsPage />} />
 
         {/* 404 Catch-all */}
         <Route path="*" element={<NotFoundPage />} />
