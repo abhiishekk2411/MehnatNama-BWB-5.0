@@ -217,11 +217,7 @@ export const Topbar: React.FC<TopbarProps> = ({
         </div>
 
         {/* Worker Profile Dropdown */}
-        <ProfileMenu
-          workerName="Ramesh Kumar"
-          workerPhone="+91 98765 43210"
-          workerId="MN-2026-7890"
-        />
+        <ProfileMenu />
       </div>
     </header>
   );

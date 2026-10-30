@@ -14,7 +14,7 @@ MehnatNama is structured around clear, incremental, and demonstrable milestones.
 │ Foundations, │     │ Design System│     │ Worker Core  │     │ Wage Rights, │     │ Offline PWA, │
 │ Schemas,     │     │ Dashboard &  │     │ Backend APIs │     │ Verification │     │ Quality &    │
 │ Scaffolding  │     │ GitHub Repo  │     │ & DB Connect │     │ & Reports    │     │ Deployment   │
-│ [COMPLETED]  │     │ [COMPLETED]  │     │  [NEXT UP]   │     │  [PLANNED]   │     │  [PLANNED]   │
+│ [COMPLETED]  │     │ [COMPLETED]  │     │ [COMPLETED]  │     │  [NEXT UP]   │     │  [PLANNED]   │
 └──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
 ```
 
@@ -68,35 +68,50 @@ MehnatNama is structured around clear, incremental, and demonstrable milestones.
   - Minimum Wage Awareness card comparing daily wages with officially notified state gazette rates.
 - [x] **GitHub Repository Integration (`MehnatNama-BWB-5.0`):**
   - Remote: `https://github.com/abhiishekk2411/MehnatNama-BWB-5.0.git`.
-  - Branches: `main`, `develop`, `feature/phase-2-ui`.
+  - Branches: `main`, `develop`, `feature/phase-2-ui`, `feature/phase-3-core`.
   - Clean `.gitignore` guarding secrets, `.env`, `node_modules`, and build artifacts.
   - Meaningful commits pushed progressively.
 
 ---
 
-### Phase 3: Core Worker Management and Backend [NEXT UP]
+### Phase 3: Core Worker Management and Backend [COMPLETED]
 **Goal:** Connect the frontend to real PostgreSQL database records through Express REST APIs, implement worker authentication, job management, daily attendance logging, and accurate financial calculations.
 
-#### Tasks & Modules:
-1. **Worker Registration and Authentication:**
-   - Worker phone and password registration with bcrypt hashing.
-   - JWT session management with refresh handling and role-based checks.
-   - Worker profile settings, emergency contact, trade/skill classification.
-2. **Database Integration:**
-   - Connect Express backend to PostgreSQL using Prisma ORM.
-   - Run and verify migrations against live database.
-   - Automated data seeding for initial benchmarks and worker sample data.
-3. **Job Management:**
-   - Create, list, update, and archive multiple active jobs (`/jobs`).
-   - Contractor contact details, site address, agreed wage rate per day (in ₹).
-   - Real-time job status toggling (`ACTIVE`, `PAUSED`, `COMPLETED`).
-4. **Daily Hisaab and Workday Tracking:**
-   - Log daily attendance: Full day (1.0), Half day (0.5), Overtime hours, or Absence.
-   - Database unique constraint on `(job_id, work_date)` to guarantee zero duplicate days.
-   - Workday calendar view and chronological timesheet history.
-   - Overtime tracking with hourly wage calculation and work notes.
-5. **Payments and Advances:**
-   - Cash advance ("kharcha") logging and weekly/monthly wage settlement records.
+#### Deliverables Completed:
+- [x] **Worker Authentication & Identity:**
+  - Phone and 4-digit PIN authentication with bcrypt hashing.
+  - JWT session issuance via HttpOnly cookies and Bearer token fallback.
+  - Tenant-isolated worker profiles (`worker_profiles`) linked 1-to-1 with `users`.
+  - Profile edit modal and live session recovery.
+- [x] **PostgreSQL Relational Schema & Seeding:**
+  - Relational tables: `users`, `worker_profiles`, `jobs`, `work_days`, `ledger_entries`, `audit_logs`, `minimum_wage_benchmarks`.
+  - Currency strictly stored as integer paise (`agreed_daily_rate_paise`, `daily_rate_snapshot_paise`, `earned_amount_paise`, `amount_paise`).
+  - Historical rate preservation: `dailyRateSnapshotPaise` stored per workday entry so future job rate changes never corrupt historical earnings.
+  - Seed script seeded worker Ramesh Kumar (9876543210 / 1234), Construction Site A, Farm Work B, 20 workdays (₹12,000 earned), and payments/advances (₹7,000 payments, ₹1,000 advances, ₹4,000 outstanding due).
+- [x] **Job Management APIs & UI (`/jobs`):**
+  - Full CRUD operations with tenant isolation (`GET /api/jobs`, `POST /api/jobs`, `PATCH /api/jobs/:id`, `PATCH /api/jobs/:id/status`, `DELETE /api/jobs/:id`).
+  - Safe deletion: soft-delete safeguard preventing hard deletion of jobs containing financial history.
+  - Real-time job status toggling (`ACTIVE`, `PAUSED`, `COMPLETED`).
+  - Filter tabs, search by job/contractor, create and edit modal.
+- [x] **Daily Hisaab Attendance Logger & Timesheet (`/daily-hisaab`):**
+  - 15-second entry card with job dropdown, date picker, 1-click attendance status buttons (`FULL_DAY`, `HALF_DAY`, `ABSENT`).
+  - Dynamic live wage preview in ₹ (100% rate, 50% rate, ₹0 for absent).
+  - Overtime minutes logging and task notes.
+  - Database unique constraint on `(job_id, work_date)` preventing accidental double entries.
+  - Chronological timesheet history table with status badges, rate snapshots, overtime, and edit modals.
+  - Summary ribbon: Days logged, Total earned, Full/Half days breakdown, Overtime hours.
+- [x] **Payments & Advances Ledger (`/payments`):**
+  - Complete financial ledger (`GET /api/ledger`, `POST /api/ledger`, `PATCH /api/ledger/:id`, `GET /api/ledger/summary`).
+  - Separate categorization of wage settlements (`PAYMENT`) and cash advances (`ADVANCE`).
+  - Payment modes: Cash, UPI (Google Pay / PhonePe), Bank Transfer, Other.
+  - Financial health cards: Total Earned, Payments Received, Advances (Kharcha), and Outstanding Due Balance.
+  - Single-count advance formula: `Outstanding Balance = Total Earned - (Payments + Advances)`.
+- [x] **Live Dashboard Integration (`/dashboard`):**
+  - Connected directly to `GET /api/dashboard/stats` and `GET /api/dashboard/activity`.
+  - Live metric cards and dynamic recent activity feed.
+- [x] **Integration Test Suite & Monorepo Automation:**
+  - Automated Jest/Supertest integration test suite passing 100% (`npm run test:server`).
+  - Root `package.json` with unified scripts: `npm run dev:server`, `npm run dev:client`, `npm run build`, `npm run seed`.
    - Payment modes (Cash, UPI, Bank Transfer) with transaction dates and notes.
 6. **Earnings and Outstanding-Balance Calculations:**
    - Server-side and client-side deterministic ledger engine.

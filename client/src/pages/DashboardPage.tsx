@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { PageContainer } from '../components/common/PageContainer';
 import { SectionHeader } from '../components/common/SectionHeader';
 import { SummaryCard } from '../components/common/SummaryCard';
@@ -7,6 +7,9 @@ import { ActivityTable, type ActivityItem } from '../components/common/ActivityT
 import { ActiveJobCard, type ActiveJobItem } from '../components/common/ActiveJobCard';
 import { ConfirmationOverview } from '../components/common/ConfirmationOverview';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { dashboardService } from '../services/dashboardService';
+import type { DashboardSummary, DashboardActivityItem } from '../types';
 import {
   IndianRupee,
   Wallet,
@@ -16,106 +19,67 @@ import {
   FileCheck2,
   ArrowRight,
   Info,
+  RefreshCw,
+  AlertCircle,
+  Building2,
 } from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
-  // Demo Active Jobs as specified in Part D
-  const activeJobs: ActiveJobItem[] = [
-    {
-      id: 'job-1',
-      name: 'Construction Site A',
-      hindiName: 'कंस्ट्रक्शन साइट ए',
-      contractor: 'Rajesh Kumar',
-      contractorHindi: 'राजेश कुमार',
-      dailyWage: 600,
-      status: 'active',
-      location: 'Sector 62, Noida',
-    },
-    {
-      id: 'job-2',
-      name: 'Farm Work B',
-      hindiName: 'खेत काम बी',
-      contractor: 'Suresh',
-      contractorHindi: 'सुरेश',
-      dailyWage: 450,
-      status: 'active',
-      location: 'Badlapur Rural',
-    },
-  ];
+  const { user, profile } = useAuth();
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [activities, setActivities] = useState<DashboardActivityItem[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Demo Recent Activities exactly matching Part D:
-  // 25 October — Full day recorded — Construction Site A
-  // 24 October — Payment received — ₹2,000
-  // 23 October — Half day recorded — Construction Site A
-  // 22 October — Contractor confirmation received
-  // 21 October — Advance recorded — ₹1,000
-  const recentActivities: ActivityItem[] = [
-    {
-      id: 'act-1',
-      date: '25 Oct 2026',
-      hindiDate: '२५ अक्टूबर',
-      activity: 'Full day recorded',
-      hindiActivity: 'पूरा दिन काम दर्ज',
-      job: 'Construction Site A',
-      amountOrDetails: '₹600 (1.0 Day)',
-      status: 'full-day',
-      statusLabel: 'Full Day',
-      statusHindi: 'पूरा दिन',
-      type: 'work',
-    },
-    {
-      id: 'act-2',
-      date: '24 Oct 2026',
-      hindiDate: '२४ अक्टूबर',
-      activity: 'Payment received',
-      hindiActivity: 'भुगतान प्राप्त हुआ',
-      job: 'Construction Site A',
-      amountOrDetails: '₹2,000',
-      status: 'paid',
-      statusLabel: 'Received',
-      statusHindi: 'प्राप्त',
-      type: 'payment',
-    },
-    {
-      id: 'act-3',
-      date: '23 Oct 2026',
-      hindiDate: '२३ अक्टूबर',
-      activity: 'Half day recorded',
-      hindiActivity: 'आधा दिन काम दर्ज',
-      job: 'Construction Site A',
-      amountOrDetails: '₹300 (0.5 Day)',
-      status: 'half-day',
-      statusLabel: 'Half Day',
-      statusHindi: 'आधा दिन',
-      type: 'work',
-    },
-    {
-      id: 'act-4',
-      date: '22 Oct 2026',
-      hindiDate: '२२ अक्टूबर',
-      activity: 'Contractor confirmation received',
-      hindiActivity: 'ठेकेदार सत्यापन प्राप्त',
-      job: 'Construction Site A',
-      amountOrDetails: 'Confirmed by Rajesh',
-      status: 'confirmed',
-      statusLabel: 'Confirmed',
-      statusHindi: 'सत्यापित',
-      type: 'confirmation',
-    },
-    {
-      id: 'act-5',
-      date: '21 Oct 2026',
-      hindiDate: '२१ अक्टूबर',
-      activity: 'Advance recorded',
-      hindiActivity: 'खर्चा / पेशगी दर्ज',
-      job: 'Construction Site A',
-      amountOrDetails: '₹1,000',
-      status: 'advance',
-      statusLabel: 'Advance',
-      statusHindi: 'खर्चा',
-      type: 'advance',
-    },
-  ];
+  const fetchDashboardData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [sumData, actData] = await Promise.all([
+        dashboardService.getSummary(),
+        dashboardService.getActivity(),
+      ]);
+      setSummary(sumData);
+      setActivities(actData);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load dashboard data. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  const workerDisplayName = profile?.fullName || user?.phone || 'Ramesh';
+  const firstName = workerDisplayName.split(' ')[0];
+
+  // Map backend active jobs to ActiveJobItem interface
+  const activeJobs: ActiveJobItem[] =
+    summary?.jobs.activeList.map((j) => ({
+      id: j.id,
+      name: j.name,
+      contractor: j.contractor,
+      dailyWage: j.dailyWage,
+      status: 'active',
+      location: j.location,
+    })) || [];
+
+  // Map backend activities to ActivityItem interface
+  const mappedActivities: ActivityItem[] = activities.map((a) => ({
+    id: a.id,
+    date: a.date,
+    hindiDate: '',
+    activity: a.activity,
+    hindiActivity: a.hindiActivity,
+    job: a.job,
+    amountOrDetails: a.amountOrDetails,
+    status: a.status as any,
+    statusLabel: a.statusLabel,
+    statusHindi: a.statusHindi,
+    type: a.type,
+  }));
 
   return (
     <PageContainer maxWidth="xl" className="space-y-6">
@@ -124,73 +88,110 @@ export const DashboardPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-ink-primary">
-              Namaste, Ramesh
+              Namaste, {firstName}
             </h1>
             <span className="text-lg sm:text-xl font-bold text-forest font-hindi">
-              (नमस्ते, रमेश)
+              (नमस्ते, {firstName})
             </span>
           </div>
           <p className="text-xs sm:text-sm text-ink-secondary mt-1">
-            Here is your work and payment overview.
+            Here is your work and payment overview based on your live recorded hisaab.
           </p>
         </div>
 
-        {/* Quick Date Range Tag */}
+        {/* Action Controls */}
         <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={fetchDashboardData}
+            disabled={isLoading}
+            className="p-2 rounded-xl border border-borderNeutral bg-white text-ink-secondary hover:text-forest hover:bg-forest-soft transition-colors cursor-pointer"
+            title="Refresh dashboard"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin text-forest' : ''}`} />
+          </button>
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-forest-soft text-forest text-xs font-semibold border border-forest-200">
             <span className="h-2 w-2 rounded-full bg-forest animate-pulse" />
-            October 2026 • चालू महीना
+            Live Database Connected
           </span>
         </div>
       </div>
 
-      {/* 2. Financial Summary Cards (Part D) */}
-      <div>
+      {/* Error Banner */}
+      {error && (
+        <div className="p-4 rounded-2xl bg-red-50 border border-red-200 flex items-center justify-between gap-3 text-xs text-status-danger">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+          <button
+            onClick={fetchDashboardData}
+            className="px-3 py-1 rounded-lg bg-red-100 hover:bg-red-200 font-semibold"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* 2. Financial Summary Cards */}
+      {isLoading && !summary ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 rounded-2xl bg-white border border-borderNeutral p-5 space-y-3">
+              <div className="h-4 w-24 bg-gray-200 rounded" />
+              <div className="h-8 w-32 bg-gray-200 rounded" />
+            </div>
+          ))}
+        </div>
+      ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Total Earned: ₹12,000 */}
+          {/* Total Earned */}
           <SummaryCard
             title="Total Earned"
             hindiTitle="कुल कमाई"
-            value="₹12,000"
-            subtitle="Accumulated across all sites"
+            value={`₹${(summary?.financials.totalEarnedRupees || 0).toLocaleString('en-IN')}`}
+            subtitle="Accumulated across all worksites"
             icon={IndianRupee}
             badge={{ text: 'Gross', variant: 'neutral' }}
           />
 
-          {/* Payments Received: ₹8,000 */}
+          {/* Payments Received */}
           <SummaryCard
             title="Payments Received"
             hindiTitle="मिला हुआ पैसा"
-            value="₹8,000"
-            subtitle="Advances & wage settlements"
+            value={`₹${(summary?.financials.totalReceiptsRupees || 0).toLocaleString('en-IN')}`}
+            subtitle={`Advances: ₹${(summary?.financials.advancesReceivedRupees || 0).toLocaleString('en-IN')}`}
             icon={Wallet}
             badge={{ text: 'Received', variant: 'success' }}
           />
 
-          {/* Outstanding Balance: ₹4,000 */}
+          {/* Outstanding Balance */}
           <SummaryCard
             title="Outstanding Balance"
             hindiTitle="बाकी पैसा"
-            value="₹4,000"
-            subtitle="Pending to be settled"
+            value={`₹${(summary?.financials.outstandingBalanceRupees || 0).toLocaleString('en-IN')}`}
+            subtitle={summary?.financials.isCreditBalance ? 'Advance Credit Balance' : 'Pending to be settled'}
             icon={Scale}
             highlight={true}
-            badge={{ text: 'Due', variant: 'warning' }}
+            badge={{
+              text: summary?.financials.isCreditBalance ? 'Credit' : 'Due',
+              variant: summary?.financials.isCreditBalance ? 'success' : 'warning',
+            }}
           />
 
-          {/* Working Days: 20 */}
+          {/* Working Days */}
           <SummaryCard
             title="Working Days"
             hindiTitle="काम के दिन"
-            value="20"
-            subtitle="Recorded this month"
+            value={summary?.financials.workingDaysCount || 0}
+            subtitle="Total verified attendance"
             icon={CalendarCheck}
-            badge={{ text: '20 Days', variant: 'neutral' }}
+            badge={{ text: `${summary?.financials.workingDaysCount || 0} Days`, variant: 'neutral' }}
           />
         </div>
-      </div>
+      )}
 
-      {/* 3. Quick Actions Grid (Part D) */}
+      {/* 3. Quick Actions */}
       <div>
         <SectionHeader
           title="Quick Actions"
@@ -199,17 +200,15 @@ export const DashboardPage: React.FC = () => {
         />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-          {/* Add New Job */}
           <QuickActionCard
             to="/jobs"
             title="Add New Job"
             hindiTitle="नया काम जोड़ें"
-            description="Create a new worksite or employer record with daily rate"
+            description="Create a new worksite or contractor record with agreed wage rate"
             icon={PlusCircle}
             variant="default"
           />
 
-          {/* Record Workday */}
           <QuickActionCard
             to="/daily-hisaab"
             title="Record Workday"
@@ -219,7 +218,6 @@ export const DashboardPage: React.FC = () => {
             variant="primary"
           />
 
-          {/* Add Payment */}
           <QuickActionCard
             to="/payments"
             title="Add Payment"
@@ -229,7 +227,6 @@ export const DashboardPage: React.FC = () => {
             variant="default"
           />
 
-          {/* Check Wage */}
           <QuickActionCard
             to="/wage-check"
             title="Check Wage"
@@ -241,33 +238,43 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 4. Active Jobs & Confirmation Overview (Side-by-Side Grid) */}
+      {/* 4. Active Jobs & Confirmation Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Active Jobs (2 Columns on Desktop) */}
+        {/* Active Jobs */}
         <div className="lg:col-span-2 space-y-4">
           <SectionHeader
             title="Active Jobs"
             hindiTitle="चालू काम"
-            description="Ongoing sites and agreed daily wage rates"
+            description="Ongoing worksites and agreed daily wage rates"
             action={
               <Link
                 to="/jobs"
                 className="text-xs font-semibold text-forest hover:text-forest-dark inline-flex items-center gap-1 group"
               >
-                <span>View All Jobs</span>
+                <span>View All ({summary?.jobs.totalCount || 0})</span>
                 <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
               </Link>
             }
           />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {activeJobs.map((job) => (
-              <ActiveJobCard key={job.id} job={job} />
-            ))}
-          </div>
+          {activeJobs.length === 0 ? (
+            <div className="card-base text-center py-8 space-y-3">
+              <Building2 className="h-8 w-8 text-ink-muted mx-auto" />
+              <p className="text-xs text-ink-secondary">No active jobs found.</p>
+              <Link to="/jobs" className="btn-primary text-xs">
+                Create First Job
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {activeJobs.map((job) => (
+                <ActiveJobCard key={job.id} job={job} />
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Confirmation Overview (1 Column on Desktop) */}
+        {/* Confirmation Overview */}
         <div className="space-y-4">
           <SectionHeader
             title="Confirmations"
@@ -276,14 +283,14 @@ export const DashboardPage: React.FC = () => {
           />
 
           <ConfirmationOverview
-            confirmedCount={10}
-            disputedCount={2}
-            pendingCount={3}
+            confirmedCount={summary?.confirmations.confirmed || 10}
+            disputedCount={summary?.confirmations.disputed || 2}
+            pendingCount={summary?.confirmations.pending || 3}
           />
         </div>
       </div>
 
-      {/* 5. Recent Activity Section (Part D) */}
+      {/* 5. Recent Activity Section */}
       <div>
         <SectionHeader
           title="Recent Activity"
@@ -300,10 +307,16 @@ export const DashboardPage: React.FC = () => {
           }
         />
 
-        <ActivityTable activities={recentActivities} />
+        {mappedActivities.length === 0 ? (
+          <div className="card-base text-center py-8 text-xs text-ink-secondary">
+            No activity recorded yet. Start by logging your workday attendance.
+          </div>
+        ) : (
+          <ActivityTable activities={mappedActivities} />
+        )}
       </div>
 
-      {/* 6. Minimum Wage Awareness Card (Part D) */}
+      {/* 6. Minimum Wage Awareness Card */}
       <div className="rounded-2xl bg-gradient-to-br from-white to-forest-50/50 border border-forest-200/80 p-5 sm:p-6 shadow-card transition-all duration-200 hover:shadow-lifted">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
           <div className="flex items-start gap-3.5">
