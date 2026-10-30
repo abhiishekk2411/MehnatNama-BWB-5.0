@@ -1,164 +1,191 @@
 # Development Roadmap: MehnatNama (मेहनतनामा)
+> **Tagline:** Har din ka kaam. Har rupaye ka hisaab.  
+> **Product Vision:** A worker-first digital wage diary and wage-rights awareness platform for daily-wage and informal workers in India.
 
 ---
 
-## 1. Roadmap Overview & Phasing Strategy
+## 1. Roadmap Overview & Phasing Architecture
 
-MehnatNama will be built incrementally in structured phases. Each phase culminates in a demonstrable, end-to-end verifiable milestone before the subsequent phase commences.
+MehnatNama is structured around clear, incremental, and demonstrable milestones. Each phase delivers a complete layer of user and technical capabilities, progressing from foundational architecture through worker core workflows, legal verification, and offline resilience.
 
 ```
-[Phase 1] ──> [Phase 2] ──> [Phase 3] ──> [Phase 4] ──> [Phase 5] ──> [Phase 6]
-Foundations   Worker Core   Contractor    Minimum Wage  PDF Saboot    Polish &
-& Auth        & Ledger      Verification  Benchmarks    Generator     Audit
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│   PHASE 1    │ ──> │   PHASE 2    │ ──> │   PHASE 3    │ ──> │   PHASE 4    │ ──> │   PHASE 5    │
+│ Foundations, │     │ Design System│     │ Worker Core  │     │ Wage Rights, │     │ Offline PWA, │
+│ Schemas,     │     │ Dashboard &  │     │ Backend APIs │     │ Verification │     │ Quality &    │
+│ Scaffolding  │     │ GitHub Repo  │     │ & DB Connect │     │ & Reports    │     │ Deployment   │
+│ [COMPLETED]  │     │ [COMPLETED]  │     │  [NEXT UP]   │     │  [PLANNED]   │     │  [PLANNED]   │
+└──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
 ```
 
 ---
 
-## 2. Phase-by-Phase Implementation Plan
+## 2. Phase Breakdown
 
-### Phase 1: Project Setup, Design System & Authentication
-**Goal:** Establish the monorepo/workspace structure, configure database and ORM migrations, construct the UI design system, and implement worker onboarding/session security.
+### Phase 1: Project Setup, Schemas & Foundations [COMPLETED]
+**Goal:** Establish monorepo workspace, PostgreSQL relational schema via Prisma, Express TypeScript backend foundation, and client scaffolding.
 
-#### Tasks:
-- [ ] Initialize frontend: Vite + React + TypeScript + Tailwind CSS + Lucide React.
-- [ ] Initialize backend: Node.js + Express + TypeScript + Prisma ORM + PostgreSQL connection.
-- [ ] Configure shared environment variables, linting, and TypeScript paths.
-- [ ] Implement Tailwind theme tokens: custom emerald/forest palette, crisp neutral slates, card shadows, responsive breakpoints.
-- [ ] Define database schema in `schema.prisma` and execute initial migrations.
-- [ ] Seed database with initial minimum wage benchmark data and demo seed data.
-- [ ] Implement backend Auth: worker registration, login with bcrypt password hashing, JWT generation, secure cookie/bearer middleware, and Zod input validation.
-- [ ] Build frontend Auth UI: Worker Register & Login views with clear feedback, input masking, and form validation.
-- [ ] Build global UI layout: App header, responsive collapsible sidebar, user avatar, and logout action.
-
-#### Dependencies: None (Root setup).
-#### Testing & Quality Milestones:
-- Worker can register a new account with phone/password.
-- Invalid phone numbers or duplicate registrations trigger clean, descriptive validation errors.
-- Login returns a secure token; protected routes bounce unauthenticated requests.
-- UI renders cleanly on mobile screen widths (360px) and desktop (1280px).
+#### Deliverables Completed:
+- [x] Initialized client structure: Vite + React 19 + TypeScript + Tailwind CSS + Lucide React.
+- [x] Initialized backend structure: Express + TypeScript + Prisma ORM + PostgreSQL client configuration.
+- [x] Defined complete relational database schema in `schema.prisma` covering Workers, Jobs, WorkLogs, Payments, Verifications, and WageBenchmarks.
+- [x] Implemented authentication services, bcrypt hashing, JWT issuance, and Zod validation schemas.
+- [x] Established project specifications (`PRODUCT_SPEC.md`, `ARCHITECTURE.md`, `DATABASE_DESIGN.md`).
 
 ---
 
-### Phase 2: Worker Core — Jobs, Workday Logging & Financial Ledger
-**Goal:** Deliver the primary worker utility: managing worksites/contractors, logging daily work (full-day, half-day, overtime), recording cash advances ("kharcha"), and viewing a live financial balance ledger.
+### Phase 2: Design System, Dashboard & GitHub Integration [COMPLETED]
+**Goal:** Construct a modern, minimal, Linear/Stripe-inspired SaaS interface with tokenized green palette, application shell, high-fidelity responsive dashboard, and remote GitHub synchronization.
 
-#### Tasks:
-- [ ] Backend Job APIs: `POST /api/jobs`, `GET /api/jobs`, `GET /api/jobs/:id`, `PATCH /api/jobs/:id`.
-- [ ] Backend WorkLog APIs: `POST /api/jobs/:id/work-logs`, `GET /api/jobs/:id/work-logs`, `PATCH /api/jobs/:id/work-logs/:logId`.
-- [ ] Implement database-level unique constraint handling for `(job_id, work_date)` to avoid duplicate day entries.
-- [ ] Backend Payment/Advance APIs: `POST /api/jobs/:id/payments`, `GET /api/jobs/:id/payments`.
-- [ ] Implement backend **Ledger Engine**: Computes gross earnings from attendance records, sums advances/payments in integer paise, and calculates net outstanding dues with 100% precision.
-- [ ] Build Frontend Jobs UI: Job creation modal (title, contractor name, phone, daily wage in ₹, start date), active jobs grid.
-- [ ] Build Daily Work Logger: 1-click status selection (`FULL_DAY`, `HALF_DAY`, `OVERTIME`, `ABSENT`), date selector, task notes, instant preview of wage calculated.
-- [ ] Build Advance & Payment Logger: Form for entering cash advance or settlement, payment mode, and date.
-- [ ] Build Job Ledger View: Interactive calendar and tabular timesheet with status pills, running balance cards ("Total Kamai", "Advances/Mila Paisa", "Baki Paisa").
-
-#### Dependencies: Phase 1 (Auth & Layout).
-#### Testing & Quality Milestones:
-- Creating a job with ₹650/day and logging 4 full days, 1 half day, and 1 overtime day (+2 hrs) produces exact calculated earnings down to the rupee.
-- Recording a ₹1,000 advance updates the "Baki Paisa" (Outstanding Dues) card immediately.
-- Attempting to log the same date twice provides a helpful "Already logged, tap to edit" prompt instead of a crash.
-
----
-
-### Phase 3: Contractor Verification & Dispute System
-**Goal:** Enable workers to generate secure, shareable verification links and provide contractors with a zero-login, mobile-friendly review portal to confirm or dispute entries.
-
-#### Tasks:
-- [ ] Backend Verification Service:
-  - Generates 256-bit cryptographically secure random token (`crypto.randomBytes(32)`).
-  - Serializes work logs and payments for the selected date window into an immutable JSON snapshot.
-  - Computes SHA-256 integrity hash of the snapshot.
-  - Stores SHA-256 hash of the token in the `verifications` table with a 14-day expiry.
-- [ ] Backend Public Verification APIs:
-  - `GET /api/verify/:token`: Validates token hash, checks expiry, tracks view count/timestamp, and returns snapshot data.
-  - `POST /api/verify/:token/respond`: Captures contractor action (`CONFIRMED` or `DISPUTED`), contractor IP, user-agent, overall notes, and line-item dispute reasons.
-- [ ] Build Frontend Share Flow (Worker App):
-  - Modal to select date range (e.g., "Last 7 Days", "This Month", "All Unverified").
-  - Generates shareable link with 1-click "Share on WhatsApp" and "Copy Link" buttons.
-- [ ] Build Contractor Review Portal (Public View):
-  - Accessible without login; clean mobile-first layout with trust header.
-  - Displays worker name, job title, date range, daily breakdown, payments, and net balance.
-  - One-click primary action: "Sab Sahi Hai" (Confirm All).
-  - Secondary action: "Kucch Galat Hai" (Dispute) enabling the contractor to tap a specific day, select a reason (e.g., "Worker was absent", "Only half-day worked"), and append a note.
-- [ ] Lock & Update Mechanism:
-  - When verified, update database flags so confirmed work logs are marked `is_locked = true`.
-  - Reflect real-time confirmation/dispute badges (🟢 Confirmed, 🔴 Disputed, 🟡 Pending) on the worker's dashboard.
-
-#### Dependencies: Phase 2 (Jobs & Work Logs).
-#### Testing & Quality Milestones:
-- An expired or tampered token returns a graceful "Link expired or invalid" state.
-- Contractor submitting "Confirm All" locks the corresponding work logs in the database.
-- Worker dashboard shows green confirmed checkmarks with contractor timestamp.
-- Disputed entries clearly display the contractor's specific reason on the worker's timesheet.
+#### Deliverables Completed:
+- [x] **Design Tokens & System (`tokens.ts`, `tailwind.config.js`, `index.css`):**
+  - Primary Forest Green (`#176B45`), Dark Green (`#104B32`), Soft Green (`#E8F3EC`).
+  - Background (`#F7F8F5`), Cards (`#FFFFFF`), Primary Text (`#202923`), Secondary Text (`#68736B`), Border (`#E5EAE5`).
+  - Semantic Status Colors: Success (`#15803D`), Warning (`#D97706`), Danger (`#DC2626`).
+  - Dual typography: Inter for numerals/English and Noto Sans Devanagari for Hindi text.
+- [x] **Modular Reusable Components (`src/components/common/`):**
+  - `BrandLogo`: Wordmark, Devanagari subtitle, notebook ledger icon badge.
+  - `SummaryCard`: Financial metric figures, status pills, subtle icons, tabular numbers.
+  - `QuickActionCard`: Touch-friendly action triggers with route links and directional arrows.
+  - `StatusBadge`: Tokenized status indicators (Confirmed, Disputed, Pending, Active, Paid, Advance, Full Day, Half Day, Absent).
+  - `ActivityTable`: Responsive data table with horizontal scrolling, date badges, and status pills.
+  - `ActiveJobCard`: Worksite details, contractor names, daily wage in ₹, and logging CTA.
+  - `ConfirmationOverview`: Breakdown bar with Confirmed: 10, Disputed: 2, Pending: 3.
+  - `SectionHeader`: Standardized bilingual header with title, subtitle, and action buttons.
+  - `PageContainer`: Responsive container with max-width limits and vertical rhythm.
+  - `ProfileMenu`: Dropdown with worker avatar, phone, worker ID, and accessible outside click listener.
+- [x] **Application Shell (`AppLayout.tsx`, `Sidebar.tsx`, `Topbar.tsx`):**
+  - Persistent desktop sidebar with collapsible expanded/icon-only toggle.
+  - Active route highlighting across all 7 core routes and support sections.
+  - Mobile navigation drawer with backdrop blur and touch targets.
+  - Topbar with dynamic breadcrumbs, Hindi/English language switcher, notification counter, and worker profile avatar.
+- [x] **High-Fidelity Dashboard (`/dashboard`):**
+  - "Namaste, Ramesh" welcome header.
+  - Financial summary: Total Earned (₹12,000), Payments Received (₹8,000), Outstanding Balance (₹4,000), Working Days (20).
+  - Quick action buttons connected to `/jobs`, `/daily-hisaab`, `/payments`, `/wage-check`.
+  - Recent activity with 5 sample entries (25 Oct Full Day, 24 Oct ₹2,000 Payment, 23 Oct Half Day, 22 Oct Confirmation, 21 Oct ₹1,000 Advance).
+  - Active jobs: Construction Site A (Rajesh Kumar, ₹600/day) and Farm Work B (Suresh, ₹450/day).
+  - Minimum Wage Awareness card comparing daily wages with officially notified state gazette rates.
+- [x] **GitHub Repository Integration (`MehnatNama-BWB-5.0`):**
+  - Remote: `https://github.com/abhiishekk2411/MehnatNama-BWB-5.0.git`.
+  - Branches: `main`, `develop`, `feature/phase-2-ui`.
+  - Clean `.gitignore` guarding secrets, `.env`, `node_modules`, and build artifacts.
+  - Meaningful commits pushed progressively.
 
 ---
 
-### Phase 4: Sourced Minimum-Wage Benchmark Engine & Labour Rights Guide
-**Goal:** Integrate statutory minimum-wage data with source citations and provide workers with legal awareness and dispute escalation resources.
+### Phase 3: Core Worker Management and Backend [NEXT UP]
+**Goal:** Connect the frontend to real PostgreSQL database records through Express REST APIs, implement worker authentication, job management, daily attendance logging, and accurate financial calculations.
 
-#### Tasks:
-- [ ] Curate and seed real-world minimum wage benchmark data for key states (e.g., Maharashtra, Delhi, Uttar Pradesh, Karnataka, Central Sphere) across skill grades (Unskilled, Semi-skilled, Skilled) with official gazette notification numbers and government authority references.
-- [ ] Backend Benchmark API: `GET /api/benchmarks?state_code=MH&skill=SEMI_SKILLED`.
-- [ ] Build Benchmark Comparison Widget on Worker Dashboard:
-  - Compares the worker's agreed daily wage with the state statutory benchmark.
-  - Displays difference: e.g., "Your rate is ₹500/day. The official notified benchmark is ₹620/day (Difference: -₹120/day)."
-  - Calculates cumulative gap across all days worked on the job.
-  - Displays prominent legal awareness disclaimer.
-- [ ] Build Labour Rights & Official Escalation Directory:
-  - Explanations of worker rights under the Payment of Wages Act, Minimum Wages Act, and Code on Wages.
-  - Step-by-step guidance on informal dispute resolution.
-  - Verified directory of District Labour Officers (DLO), national toll-free helpline (14434), and Shram Suvidha portal.
+#### Tasks & Modules:
+1. **Worker Registration and Authentication:**
+   - Worker phone and password registration with bcrypt hashing.
+   - JWT session management with refresh handling and role-based checks.
+   - Worker profile settings, emergency contact, trade/skill classification.
+2. **Database Integration:**
+   - Connect Express backend to PostgreSQL using Prisma ORM.
+   - Run and verify migrations against live database.
+   - Automated data seeding for initial benchmarks and worker sample data.
+3. **Job Management:**
+   - Create, list, update, and archive multiple active jobs (`/jobs`).
+   - Contractor contact details, site address, agreed wage rate per day (in ₹).
+   - Real-time job status toggling (`ACTIVE`, `PAUSED`, `COMPLETED`).
+4. **Daily Hisaab and Workday Tracking:**
+   - Log daily attendance: Full day (1.0), Half day (0.5), Overtime hours, or Absence.
+   - Database unique constraint on `(job_id, work_date)` to guarantee zero duplicate days.
+   - Workday calendar view and chronological timesheet history.
+   - Overtime tracking with hourly wage calculation and work notes.
+5. **Payments and Advances:**
+   - Cash advance ("kharcha") logging and weekly/monthly wage settlement records.
+   - Payment modes (Cash, UPI, Bank Transfer) with transaction dates and notes.
+6. **Earnings and Outstanding-Balance Calculations:**
+   - Server-side and client-side deterministic ledger engine.
+   - `Gross Earnings = Sum(Days * Daily Wage) + Overtime`.
+   - `Net Balance Due = Gross Earnings - Total Payments/Advances`.
+   - Live dashboard connected to real backend metrics.
 
-#### Dependencies: Phase 2 (Worker Jobs data).
-#### Testing & Quality Milestones:
-- Selecting trade "Mason" and state "Maharashtra" pulls the correct official minimum wage benchmark with order number.
-- Disclaimers are clearly visible, ensuring no misleading impression of a judicial decree.
-
----
-
-### Phase 5: PDF "MehnatNama" Statement Generator
-**Goal:** Synthesize a downloadable, structured, print-ready PDF statement summarizing work, payments, contractor verification stamps, and wage benchmarks.
-
-#### Tasks:
-- [ ] Implement PDF generator service (client-side or server-side deterministic PDF generator).
-- [ ] Design professional document template:
-  - Clean bilingual header with document reference number.
-  - Worker and contractor profile block.
-  - Financial summary box (Total Days, Gross Wage, Total Advances, Net Outstanding).
-  - Chronological Work Log Table with verification stamps (including digital confirmation timestamps).
-  - Advance/Payment Transaction Ledger.
-  - Statutory Minimum Wage Comparison note.
-  - Physical endorsement/signature section for offline mediation.
-- [ ] Build frontend "Download Saboot PDF" button with instant preview and download action.
-
-#### Dependencies: Phase 3 (Verification Stamps) & Phase 4 (Benchmarks).
-#### Testing & Quality Milestones:
-- Generated PDF renders correctly on mobile devices and desktop PDF viewers.
-- Numbers in the PDF match the dashboard ledger with zero discrepancies.
-- Verification status and timestamps are clearly formatted in the timesheet table.
+#### Quality & Testing Milestones:
+- Worker can register, log in, create 2 jobs, and log 10 attendance records.
+- Financial figures reflect mathematical accuracy down to the rupee.
+- Duplicate day logging is safely rejected with clear validation messages.
 
 ---
 
-### Phase 6: End-to-End Testing, Security Hardening & Polish
-**Goal:** Comprehensive validation, responsive polish, and security auditing across all user flows.
+### Phase 4: Wage Rights, Verification and Reporting [PLANNED]
+**Goal:** Empower workers with cryptographic contractor verification links, dispute management, statutory minimum wage comparison, and print-ready PDF statements.
 
-#### Tasks:
-- [ ] Security testing: verify token rate-limiting, cross-tenant isolation, SQL injection prevention via Prisma, and XSS sanitization.
-- [ ] Edge-case validation: zero-day months, leap years, multi-year jobs, partial payments exceeding earnings, rapid successive clicks.
-- [ ] Responsive design audit across mobile (360px, 390px, 412px), tablet (768px), and desktop (1280px+).
-- [ ] Performance optimization: bundle size reduction, code splitting, memoized calculations.
-- [ ] Documentation and deployment preparation.
+#### Tasks & Modules:
+1. **Secure Contractor Confirmation Links:**
+   - Cryptographically secure 256-bit token generator (`crypto.randomBytes(32)`).
+   - Immutable snapshot serialization of timesheet and payments.
+   - Expiration window (14-day validity) and tamper-proof SHA-256 verification hash.
+2. **Contractor Confirm/Dispute Workflow:**
+   - Zero-login, mobile-responsive public review portal for contractors.
+   - 1-click confirmation ("Sab Sahi Hai") which marks records as verified and locks entries.
+   - Line-item dispute workflow ("Kucch Galat Hai") with standardized dispute reasons (Absent, Partial Day, Advance mismatch).
+   - Full acknowledgement history and contractor digital audit trail (timestamp, IP).
+3. **Minimum-Wage Calculator & Official Notifications:**
+   - Sourced minimum wage benchmark engine covering key states and Central Sphere.
+   - Effective dates, gazette notification numbers, and authority references.
+   - Real-time wage comparison displaying daily wage difference and cumulative wage loss.
+   - Transparent legal awareness disclaimers preventing misrepresentation.
+4. **PDF Reports & WhatsApp Sharing:**
+   - Print-ready and downloadable PDF "MehnatNama" statement generator.
+   - Worker profile, contractor info, attendance ledger, payment register, and verification stamps.
+   - 1-click WhatsApp share button with pre-formatted bilingual message and link.
+5. **Know Your Rights & Escalation Directory:**
+   - Simplified explainers on Payment of Wages Act, Minimum Wages Act, and Code on Wages.
+   - Verified official escalation directory: District Labour Officers (DLO), national toll-free helpline (14434), and Shram Suvidha portal.
+   - Optional helper/volunteer access for assisted literacy.
 
-#### Dependencies: Phases 1–5.
-#### Testing & Quality Milestones:
-- 100% test pass rate for financial calculation unit tests.
-- Zero console errors or layout shifts during navigation.
+#### Quality & Testing Milestones:
+- Contractor review link opens smoothly on mobile without login requirements.
+- Confirmed records display green verified checkmarks across worker dashboard.
+- Disputed entries clearly display contractor feedback.
+- PDF generation creates crisp, formatted bilingual statement with matching figures.
 
 ---
 
-### Future Phase: Offline PWA & Hindi Voice Input (Post-MVP)
-- Service Worker caching for offline viewing.
-- IndexedDB outbox queue for logging work without active internet.
-- Multi-language switching (Hindi / English).
-- Speech-to-text input for task notes in regional vernacular.
+### Phase 5: Offline Support, Quality and Deployment [PLANNED]
+**Goal:** Add offline Progressive Web App capabilities, multilingual support, accessibility, end-to-end security audits, and production cloud deployment.
+
+#### Tasks & Modules:
+1. **Progressive Web App (PWA) & Offline Logging:**
+   - Service Worker caching for offline app shell and critical resources.
+   - IndexedDB local storage queue for logging workdays without active internet.
+   - Background synchronization when internet connection returns.
+2. **Hindi and English Language Switching:**
+   - Complete bilingual UI with instant toggle between Hindi (हिंदी) and English.
+   - Voice-friendly UX and experimental voice input for task notes in regional vernacular.
+3. **Notifications and Reminders:**
+   - Daily attendance reminder notifications.
+   - Contractor verification alerts and payment settlement reminders.
+4. **Mobile-First Optimisation & Touch Polish:**
+   - Ultra-responsive touch targets (minimum 44px).
+   - Low-data mode and lightweight asset loading for 2G/3G connectivity.
+5. **Security Review & Audit History:**
+   - Cross-tenant data isolation testing.
+   - SQL injection prevention (Prisma parameterized queries) and XSS sanitization.
+   - Immutable audit logging for financial and confirmation events.
+6. **Application Testing & Bug Fixing:**
+   - Unit tests for financial calculations and verification hashing.
+   - End-to-end user flow tests across mobile and desktop.
+7. **Production Deployment & Hackathon Demo:**
+   - Production containerization / cloud deployment (e.g. Vercel for frontend, Render/Railway for backend, Neon/Supabase for PostgreSQL).
+   - Hackathon presentation demo script, sample worker profiles, and live verification showcase.
+
+---
+
+## 3. Technology Stack Reference
+
+| Layer | Technology |
+|---|---|
+| **Frontend Framework** | React 19, TypeScript, Vite |
+| **Styling & Design System** | Tailwind CSS (Curated Forest Green tokens), Custom CSS Utilities |
+| **Icons & Typography** | Lucide React, Google Fonts (Inter + Noto Sans Devanagari) |
+| **Routing & Navigation** | React Router v7 |
+| **Backend Framework** | Node.js, Express, TypeScript |
+| **Database & ORM** | PostgreSQL, Prisma ORM |
+| **Authentication & Crypto** | JWT, bcrypt, Node crypto (SHA-256 tokens) |
+| **Validation** | Zod schemas |
+| **Repository & Workflow** | Git, GitHub (`MehnatNama-BWB-5.0`) with `main`, `develop`, `feature/phase-2-ui` |
