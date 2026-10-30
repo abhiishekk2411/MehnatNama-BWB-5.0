@@ -3,11 +3,11 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../config/database.js';
 import { env } from '../config/env.js';
 import { ConflictError, UnauthorizedError, NotFoundError } from '../utils/errors.js';
-import { RegisterInput, LoginInput } from '../validation/auth.schema.js';
+import type { RegisterInput, LoginInput, UpdateProfileInput } from '../validation/auth.schema.js';
 
 export class AuthService {
   static async register(input: RegisterInput) {
-    const existing = await prisma.worker.findUnique({
+    const existing = await prisma.user.findUnique({
       where: { phone: input.phone },
     });
 
@@ -15,109 +15,115 @@ export class AuthService {
       throw new ConflictError('A worker with this mobile number is already registered. Please login.');
     }
 
-    if (input.email) {
-      const existingEmail = await prisma.worker.findUnique({
-        where: { email: input.email },
+    const pinHash = await bcrypt.hash(input.pin, 10);
+
+    const user = await prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          phone: input.phone,
+          pinHash,
+        },
       });
-      if (existingEmail) {
-        throw new ConflictError('An account with this email address already exists.');
-      }
-    }
 
-    const passwordHash = await bcrypt.hash(input.password, 10);
+      const profile = await tx.workerProfile.create({
+        data: {
+          userId: newUser.id,
+          fullName: input.fullName,
+          preferredLanguage: input.preferredLanguage,
+          workerType: input.workerType,
+          skillLevel: input.skillLevel,
+        },
+      });
 
-    const worker = await prisma.worker.create({
-      data: {
-        phone: input.phone,
-        email: input.email || null,
-        passwordHash,
-        fullName: input.fullName,
-        trade: input.trade,
-        stateCode: input.stateCode,
-        district: input.district || null,
-        preferredLang: input.preferredLang,
-      },
-      select: {
-        id: true,
-        phone: true,
-        email: true,
-        fullName: true,
-        trade: true,
-        stateCode: true,
-        district: true,
-        preferredLang: true,
-        createdAt: true,
-      },
+      return {
+        id: newUser.id,
+        phone: newUser.phone,
+        createdAt: newUser.createdAt,
+        profile,
+      };
     });
 
-    const token = jwt.sign({ workerId: worker.id }, env.JWT_SECRET, {
+    const token = jwt.sign({ userId: user.id }, env.JWT_SECRET, {
       expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'],
     });
 
-    return { token, worker };
+    return { token, user };
   }
 
   static async login(input: LoginInput) {
-    const worker = await prisma.worker.findUnique({
+    const user = await prisma.user.findUnique({
       where: { phone: input.phone },
+      include: { profile: true },
     });
 
-    if (!worker) {
-      throw new UnauthorizedError('Invalid mobile number or password.');
+    if (!user) {
+      throw new UnauthorizedError('Invalid mobile number or PIN.');
     }
 
-    const isMatch = await bcrypt.compare(input.password, worker.passwordHash);
+    const isMatch = await bcrypt.compare(input.pin, user.pinHash);
     if (!isMatch) {
-      throw new UnauthorizedError('Invalid mobile number or password.');
+      throw new UnauthorizedError('Invalid mobile number or PIN.');
     }
 
-    const token = jwt.sign({ workerId: worker.id }, env.JWT_SECRET, {
+    const token = jwt.sign({ userId: user.id }, env.JWT_SECRET, {
       expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'],
     });
 
     return {
       token,
-      worker: {
-        id: worker.id,
-        phone: worker.phone,
-        email: worker.email,
-        fullName: worker.fullName,
-        trade: worker.trade,
-        stateCode: worker.stateCode,
-        district: worker.district,
-        preferredLang: worker.preferredLang,
-        createdAt: worker.createdAt,
+      user: {
+        id: user.id,
+        phone: user.phone,
+        createdAt: user.createdAt,
+        profile: user.profile,
       },
     };
   }
 
-  static async getProfile(workerId: string) {
-    const worker = await prisma.worker.findUnique({
-      where: { id: workerId },
-      select: {
-        id: true,
-        phone: true,
-        email: true,
-        fullName: true,
-        trade: true,
-        stateCode: true,
-        district: true,
-        preferredLang: true,
-        createdAt: true,
+  static async getProfile(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        profile: true,
         _count: {
           select: {
             jobs: true,
-            workLogs: true,
-            payments: true,
+            workDays: true,
+            ledgerEntries: true,
           },
         },
       },
     });
 
-    if (!worker) {
-      throw new NotFoundError('Worker profile not found');
+    if (!user) {
+      throw new NotFoundError('Worker account not found.');
     }
 
-    return worker;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { pinHash: _pinHash, ...safeUser } = user;
+    return safeUser;
+  }
+
+  static async updateProfile(userId: string, input: UpdateProfileInput) {
+    const existing = await prisma.workerProfile.findUnique({
+      where: { userId },
+    });
+
+    if (!existing) {
+      throw new NotFoundError('Worker profile not found.');
+    }
+
+    const updatedProfile = await prisma.workerProfile.update({
+      where: { userId },
+      data: {
+        ...(input.fullName && { fullName: input.fullName }),
+        ...(input.preferredLanguage && { preferredLanguage: input.preferredLanguage }),
+        ...(input.workerType && { workerType: input.workerType }),
+        ...(input.skillLevel && { skillLevel: input.skillLevel }),
+        ...(input.profilePhotoUrl !== undefined && { profilePhotoUrl: input.profilePhotoUrl }),
+      },
+    });
+
+    return updatedProfile;
   }
 }

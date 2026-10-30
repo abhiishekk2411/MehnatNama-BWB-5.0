@@ -1,0 +1,15 @@
+{
+  "name": "mehnatnama-root",
+  "version": "1.0.0",
+  "description": "MehnatNama (मेहनतनामा) — Har din ka kaam. Har rupaye ka hisaab. Monorepo root workflow",
+  "private": true,
+  "scripts": {
+    "dev:server": "npm run dev --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "build:server": "npm run build --prefix server",
+    "build:client": "npm run build --prefix client",
+    "build": "npm run build:server && npm run build:client",
+    "seed": "npm run prisma:seed --prefix server",
+    "test:server": "npm test --prefix server"
+  }
+}

@@ -1,132 +1,183 @@
-export type WorkerTrade =
-  | 'MASON'
-  | 'CARPENTER'
-  | 'HELPER'
-  | 'LOADER'
-  | 'PAINTER'
-  | 'ELECTRICIAN'
-  | 'PLUMBER'
-  | 'AGRICULTURAL_LABOURER'
-  | 'GENERAL_LABOUR'
-  | 'OTHER';
+export type JobStatus = 'ACTIVE' | 'COMPLETED' | 'PAUSED';
 
-export type JobStatus = 'ACTIVE' | 'COMPLETED' | 'DISPUTED';
+export type WorkDayStatus = 'FULL_DAY' | 'HALF_DAY' | 'ABSENT';
 
-export type WorkDayStatus = 'FULL_DAY' | 'HALF_DAY' | 'OVERTIME' | 'ABSENT';
-
-export type TransactionType = 'ADVANCE' | 'PARTIAL_PAYMENT' | 'FINAL_SETTLEMENT';
+export type LedgerEntryType = 'PAYMENT' | 'ADVANCE';
 
 export type PaymentMode = 'CASH' | 'UPI' | 'BANK_TRANSFER' | 'OTHER';
 
-export type VerificationStatus = 'PENDING' | 'VIEWED' | 'CONFIRMED' | 'DISPUTED' | 'EXPIRED';
+export type SkillLevel = 'UNSKILLED' | 'SEMI_SKILLED' | 'SKILLED' | 'HIGHLY_SKILLED';
 
-export type SkillCategory = 'UNSKILLED' | 'SEMI_SKILLED' | 'SKILLED' | 'HIGHLY_SKILLED';
+export type WorkerTrade = string;
 
-export interface Worker {
+export interface WorkerProfile {
+  id: string;
+  userId: string;
+  fullName: string;
+  preferredLanguage: string;
+  workerType: string;
+  skillLevel: SkillLevel;
+  profilePhotoUrl?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface User {
   id: string;
   phone: string;
-  email?: string | null;
-  fullName: string;
-  trade: WorkerTrade;
-  stateCode: string;
-  district?: string | null;
-  preferredLang: string;
   createdAt: string;
-  _count?: {
-    jobs: number;
-    workLogs: number;
-    payments: number;
-  };
+  profile?: WorkerProfile | null;
+}
+
+export interface JobStats {
+  totalDays: number;
+  totalEarnedPaise: number;
+  totalEarnedRupees: number;
+  totalPaymentsPaise: number;
+  totalAdvancesPaise: number;
+  totalReceiptsPaise: number;
+  totalReceiptsRupees: number;
+  outstandingBalancePaise: number;
+  outstandingBalanceRupees: number;
+  isCreditBalance: boolean;
 }
 
 export interface Job {
   id: string;
-  workerId: string;
-  title: string;
+  userId: string;
+  jobTitle: string;
   contractorName: string;
   contractorPhone: string;
-  siteLocation?: string | null;
-  dailyWagePaise: number;
-  standardHours: number;
-  overtimeRatePaise: number;
+  workLocation?: string | null;
+  workCategory?: string | null;
+  skillLevel: SkillLevel;
+  agreedDailyRatePaise: number;
   startDate: string;
+  expectedEndDate?: string | null;
   status: JobStatus;
   createdAt: string;
   updatedAt: string;
+  stats?: JobStats;
   _count?: {
-    workLogs: number;
-    payments: number;
-    verifications: number;
+    workDays: number;
+    ledgerEntries: number;
   };
 }
 
-export interface WorkLog {
+export interface WorkDay {
   id: string;
+  userId: string;
   jobId: string;
-  workerId: string;
   workDate: string;
   status: WorkDayStatus;
-  overtimeHours: number;
-  wageEarnedPaise: number;
-  notes?: string | null;
-  isLocked: boolean;
+  dailyRateSnapshotPaise: number;
+  earnedAmountPaise: number;
+  overtimeMinutes: number;
+  note?: string | null;
   createdAt: string;
+  updatedAt: string;
+  job?: {
+    id: string;
+    jobTitle: string;
+    contractorName: string;
+    workLocation?: string | null;
+    agreedDailyRatePaise?: number;
+  };
 }
 
-export interface PaymentTransaction {
-  id: string;
-  jobId: string;
-  workerId: string;
-  amountPaise: number;
-  type: TransactionType;
-  paymentMode: PaymentMode;
-  transactionDate: string;
-  notes?: string | null;
-  createdAt: string;
-}
-
-export interface VerificationItem {
-  id: string;
-  verificationId: string;
-  workLogId?: string | null;
-  paymentId?: string | null;
-  isDisputed: boolean;
-  disputeReason?: string | null;
-  contractorNote?: string | null;
-}
-
-export interface VerificationSnapshot {
-  workerName: string;
-  workerPhone: string;
-  workerTrade: string;
-  jobTitle: string;
-  contractorName: string;
-  dailyWagePaise: number;
-  dateRangeStart: string;
-  dateRangeEnd: string;
+export interface WorkDaySummary {
+  totalEntries: number;
+  totalDays?: number;
   totalDaysWorked: number;
-  totalEarningsPaise: number;
-  totalAdvancesPaise: number;
-  netDuesPaise: number;
-  workLogs: WorkLog[];
-  payments: PaymentTransaction[];
+  fullDays: number;
+  halfDays: number;
+  absentDays: number;
+  totalEarnedPaise: number;
+  totalEarnedRupees: number;
+  totalOvertimeMinutes: number;
+  totalOvertimeHours: string;
 }
 
-export interface Verification {
+export interface LedgerEntry {
   id: string;
+  userId: string;
   jobId: string;
-  tokenHash: string;
-  dateRangeStart: string;
-  dateRangeEnd: string;
-  snapshotPayload: VerificationSnapshot;
-  status: VerificationStatus;
-  viewCount: number;
-  firstViewedAt?: string | null;
-  respondedAt?: string | null;
-  contractorNote?: string | null;
-  expiresAt: string;
+  type: LedgerEntryType;
+  amountPaise: number;
+  paymentDate: string;
+  paymentMode: PaymentMode;
+  note?: string | null;
   createdAt: string;
-  items?: VerificationItem[];
+  updatedAt: string;
+  job?: {
+    id: string;
+    jobTitle: string;
+    contractorName: string;
+  };
+}
+
+export interface LedgerSummary {
+  totalEntries: number;
+  totalEarnedPaise: number;
+  totalEarnedRupees: number;
+  totalPaymentsPaise: number;
+  totalPaymentsRupees: number;
+  totalAdvancesPaise: number;
+  totalAdvancesRupees: number;
+  totalReceiptsPaise: number;
+  totalReceiptsRupees: number;
+  outstandingBalancePaise: number;
+  outstandingBalanceRupees: number;
+  isCreditBalance: boolean;
+}
+
+export interface DashboardSummary {
+  financials: {
+    totalEarnedPaise: number;
+    totalEarnedRupees: number;
+    paymentsReceivedPaise: number;
+    paymentsReceivedRupees: number;
+    advancesReceivedPaise: number;
+    advancesReceivedRupees: number;
+    totalReceiptsPaise: number;
+    totalReceiptsRupees: number;
+    outstandingBalancePaise: number;
+    outstandingBalanceRupees: number;
+    isCreditBalance: boolean;
+    workingDaysCount: number;
+  };
+  jobs: {
+    activeCount: number;
+    totalCount: number;
+    activeList: Array<{
+      id: string;
+      name: string;
+      contractor: string;
+      dailyWage: number;
+      dailyWagePaise: number;
+      status: string;
+      location?: string;
+    }>;
+  };
+  confirmations: {
+    confirmed: number;
+    disputed: number;
+    pending: number;
+  };
+}
+
+export interface DashboardActivityItem {
+  id: string;
+  timestamp: number;
+  date: string;
+  activity: string;
+  hindiActivity?: string;
+  job: string;
+  amountOrDetails: string;
+  status: string;
+  statusLabel?: string;
+  statusHindi?: string;
+  type: 'work' | 'payment' | 'advance';
 }
 
 export interface MinimumWageBenchmark {
@@ -134,22 +185,33 @@ export interface MinimumWageBenchmark {
   stateCode: string;
   sphere: 'CENTRAL' | 'STATE';
   scheduledEmployment: string;
-  skillCategory: SkillCategory;
+  skillCategory: SkillLevel;
   dailyWagePaise: number;
   effectiveDate: string;
   notificationRef: string;
   authorityName: string;
-  sourceUrl: string;
+  sourceUrl?: string | null;
   isActive: boolean;
 }
 
 export interface ApiResponse<T = unknown> {
+  data?: T;
   success: boolean;
   message?: string;
-  data?: T;
   error?: {
     message: string;
     statusCode: number;
     issues?: Array<{ field: string; message: string }>;
   };
+  token?: string;
+  user?: User;
+  profile?: WorkerProfile;
+  jobs?: Job[];
+  job?: Job;
+  workDays?: WorkDay[];
+  workDay?: WorkDay;
+  summary?: any;
+  entries?: LedgerEntry[];
+  entry?: LedgerEntry;
+  activities?: DashboardActivityItem[];
 }

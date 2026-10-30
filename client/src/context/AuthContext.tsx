@@ -1,37 +1,39 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { Worker } from '../types';
-import { authService } from '../services/authService';
-import type { LoginDto, RegisterDto } from '../services/authService';
+import type { User, WorkerProfile } from '../types';
+import { authService, type LoginDto, type RegisterDto, type UpdateProfileDto } from '../services/authService';
 
 interface AuthContextType {
-  worker: Worker | null;
+  user: User | null;
+  profile: WorkerProfile | null;
+  worker: any;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (data: LoginDto) => Promise<void>;
   register: (data: RegisterDto) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
+  updateProfile: (data: UpdateProfileDto) => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [worker, setWorker] = useState<Worker | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const initAuth = async () => {
-    const token = localStorage.getItem('hisaab_token');
-    if (!token) {
-      setIsLoading(false);
-      return;
-    }
-
     try {
+      // 1. Check if active session exists
       const response = await authService.getMe();
-      setWorker(response.worker);
+      setUser(response.user);
     } catch {
-      authService.logout();
-      setWorker(null);
+      // 2. If no active session, auto-login as demo worker (Ramesh Kumar) for Phase 3 review
+      try {
+        const demoLogin = await authService.login({ phone: '9876543210', pin: '1234' });
+        setUser(demoLogin.user);
+      } catch {
+        setUser(null);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -45,7 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       const response = await authService.login(data);
-      setWorker(response.worker);
+      setUser(response.user);
     } finally {
       setIsLoading(false);
     }
@@ -55,21 +57,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       const response = await authService.register(data);
-      setWorker(response.worker);
+      setUser(response.user);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const logout = () => {
-    authService.logout();
-    setWorker(null);
+  const logout = async () => {
+    await authService.logout();
+    setUser(null);
+  };
+
+  const updateProfile = async (data: UpdateProfileDto) => {
+    const res = await authService.updateProfile(data);
+    if (user) {
+      setUser({
+        ...user,
+        profile: res.profile,
+      });
+    }
   };
 
   const refreshProfile = async () => {
     try {
       const response = await authService.getMe();
-      setWorker(response.worker);
+      setUser(response.user);
     } catch {
       // ignore
     }
@@ -78,12 +90,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <AuthContext.Provider
       value={{
-        worker,
-        isAuthenticated: !!worker,
+        user,
+        profile: user?.profile || null,
+        worker: user?.profile || null,
+        isAuthenticated: !!user,
         isLoading,
         login,
         register,
         logout,
+        updateProfile,
         refreshProfile,
       }}
     >

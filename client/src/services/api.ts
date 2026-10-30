@@ -1,21 +1,24 @@
 import type { ApiResponse } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+const API_BASE_URL =
+  (typeof window !== 'undefined' && window.location.hostname)
+    ? `${window.location.protocol}//${window.location.hostname}:5001/api`
+    : (import.meta.env.VITE_API_URL || 'http://localhost:5001/api');
 
 class ApiClient {
   private getAuthToken(): string | null {
-    return localStorage.getItem('hisaab_token');
+    return localStorage.getItem('mehnatnama_token');
   }
 
   public setAuthToken(token: string): void {
-    localStorage.setItem('hisaab_token', token);
+    localStorage.setItem('mehnatnama_token', token);
   }
 
   public removeAuthToken(): void {
-    localStorage.removeItem('hisaab_token');
+    localStorage.removeItem('mehnatnama_token');
   }
 
-  public async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  public async request<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
     const token = this.getAuthToken();
 
@@ -32,17 +35,18 @@ class ApiClient {
     try {
       const response = await fetch(url, {
         ...options,
+        credentials: 'include', // Include HttpOnly cookies automatically
         headers,
       });
 
       const data: ApiResponse<T> = await response.json();
 
       if (!response.ok || !data.success) {
-        const errorMsg = data.error?.message || 'Something went wrong. Please try again.';
+        const errorMsg = data.error?.message || data.message || 'Something went wrong. Please try again.';
         throw new Error(errorMsg);
       }
 
-      return data.data as T;
+      return data as T;
     } catch (err: unknown) {
       if (err instanceof Error) {
         throw err;
