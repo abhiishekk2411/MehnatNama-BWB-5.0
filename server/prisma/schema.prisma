@@ -1,0 +1,238 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum WorkerTrade {
+  MASON
+  CARPENTER
+  HELPER
+  LOADER
+  PAINTER
+  ELECTRICIAN
+  PLUMBER
+  AGRICULTURAL_LABOURER
+  GENERAL_LABOUR
+  OTHER
+}
+
+enum JobStatus {
+  ACTIVE
+  COMPLETED
+  DISPUTED
+}
+
+enum WorkDayStatus {
+  FULL_DAY
+  HALF_DAY
+  OVERTIME
+  ABSENT
+}
+
+enum TransactionType {
+  ADVANCE
+  PARTIAL_PAYMENT
+  FINAL_SETTLEMENT
+}
+
+enum PaymentMode {
+  CASH
+  UPI
+  BANK_TRANSFER
+  OTHER
+}
+
+enum VerificationStatus {
+  PENDING
+  VIEWED
+  CONFIRMED
+  DISPUTED
+  EXPIRED
+}
+
+enum SkillCategory {
+  UNSKILLED
+  SEMI_SKILLED
+  SKILLED
+  HIGHLY_SKILLED
+}
+
+enum EmploymentSphere {
+  CENTRAL
+  STATE
+}
+
+model Worker {
+  id             String          @id @default(uuid()) @db.Uuid
+  phone          String          @unique @db.VarChar(15)
+  email          String?         @unique @db.VarChar(255)
+  passwordHash   String          @map("password_hash") @db.VarChar(255)
+  fullName       String          @map("full_name") @db.VarChar(100)
+  trade          WorkerTrade     @default(GENERAL_LABOUR)
+  stateCode      String          @map("state_code") @db.VarChar(10)
+  district       String?         @db.VarChar(100)
+  preferredLang  String          @default("hi") @map("preferred_lang") @db.VarChar(5)
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz()
+
+  jobs           Job[]
+  workLogs       WorkLog[]
+  payments       PaymentTransaction[]
+  auditLogs      AuditLog[]
+
+  @@map("workers")
+}
+
+model Job {
+  id                String          @id @default(uuid()) @db.Uuid
+  workerId          String          @map("worker_id") @db.Uuid
+  title             String          @db.VarChar(150)
+  contractorName    String          @map("contractor_name") @db.VarChar(100)
+  contractorPhone   String          @map("contractor_phone") @db.VarChar(15)
+  siteLocation      String?         @map("site_location") @db.VarChar(255)
+  dailyWagePaise    Int             @map("daily_wage_paise")
+  standardHours     Int             @default(8) @map("standard_hours") @db.SmallInt
+  overtimeRatePaise Int             @default(0) @map("overtime_rate_paise")
+  startDate         DateTime        @map("start_date") @db.Date
+  status            JobStatus       @default(ACTIVE)
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz()
+
+  worker            Worker          @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  workLogs          WorkLog[]
+  payments          PaymentTransaction[]
+  verifications     Verification[]
+
+  @@index([workerId])
+  @@index([status])
+  @@map("jobs")
+}
+
+model WorkLog {
+  id               String               @id @default(uuid()) @db.Uuid
+  jobId            String               @map("job_id") @db.Uuid
+  workerId         String               @map("worker_id") @db.Uuid
+  workDate         DateTime             @map("work_date") @db.Date
+  status           WorkDayStatus        @default(FULL_DAY)
+  overtimeHours    Decimal              @default(0.00) @map("overtime_hours") @db.Decimal(4, 2)
+  wageEarnedPaise  Int                  @map("wage_earned_paise")
+  notes            String?              @db.Text
+  isLocked         Boolean              @default(false) @map("is_locked")
+  createdAt        DateTime             @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt        DateTime             @updatedAt @map("updated_at") @db.Timestamptz()
+
+  job              Job                  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  worker           Worker               @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  verificationItems VerificationItem[]
+
+  @@unique([jobId, workDate])
+  @@index([jobId, workDate])
+  @@index([workerId])
+  @@map("work_logs")
+}
+
+model PaymentTransaction {
+  id               String               @id @default(uuid()) @db.Uuid
+  jobId            String               @map("job_id") @db.Uuid
+  workerId         String               @map("worker_id") @db.Uuid
+  amountPaise      Int                  @map("amount_paise")
+  type             TransactionType      @default(ADVANCE)
+  paymentMode      PaymentMode          @default(CASH) @map("payment_mode")
+  transactionDate  DateTime             @map("transaction_date") @db.Date
+  notes            String?              @db.Text
+  createdAt        DateTime             @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt        DateTime             @updatedAt @map("updated_at") @db.Timestamptz()
+
+  job              Job                  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  worker           Worker               @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  verificationItems VerificationItem[]
+
+  @@index([jobId, transactionDate])
+  @@index([workerId])
+  @@map("payment_transactions")
+}
+
+model Verification {
+  id               String               @id @default(uuid()) @db.Uuid
+  jobId            String               @map("job_id") @db.Uuid
+  tokenHash        String               @unique @map("token_hash") @db.VarChar(64)
+  dateRangeStart   DateTime             @map("date_range_start") @db.Date
+  dateRangeEnd     DateTime             @map("date_range_end") @db.Date
+  snapshotPayload  Json                 @map("snapshot_payload")
+  snapshotHash     String               @map("snapshot_hash") @db.VarChar(64)
+  status           VerificationStatus   @default(PENDING)
+  viewCount        Int                  @default(0) @map("view_count")
+  firstViewedAt    DateTime?            @map("first_viewed_at") @db.Timestamptz()
+  respondedAt      DateTime?            @map("responded_at") @db.Timestamptz()
+  contractorIp     String?              @map("contractor_ip") @db.VarChar(45)
+  contractorAgent  String?              @map("contractor_agent") @db.Text
+  contractorNote   String?              @map("contractor_note") @db.Text
+  expiresAt        DateTime             @map("expires_at") @db.Timestamptz()
+  createdAt        DateTime             @default(now()) @map("created_at") @db.Timestamptz()
+
+  job              Job                  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  items            VerificationItem[]
+
+  @@index([tokenHash])
+  @@index([jobId])
+  @@map("verifications")
+}
+
+model VerificationItem {
+  id              String              @id @default(uuid()) @db.Uuid
+  verificationId  String              @map("verification_id") @db.Uuid
+  workLogId       String?             @map("work_log_id") @db.Uuid
+  paymentId       String?             @map("payment_id") @db.Uuid
+  isDisputed      Boolean             @default(false) @map("is_disputed")
+  disputeReason   String?             @map("dispute_reason") @db.VarChar(100)
+  contractorNote  String?             @map("contractor_note") @db.Text
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz()
+
+  verification    Verification        @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+  workLog         WorkLog?            @relation(fields: [workLogId], references: [id], onDelete: SetNull)
+  payment         PaymentTransaction? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([verificationId])
+  @@map("verification_items")
+}
+
+model MinimumWageBenchmark {
+  id                   String           @id @default(uuid()) @db.Uuid
+  stateCode            String           @map("state_code") @db.VarChar(10)
+  sphere               EmploymentSphere @default(STATE)
+  scheduledEmployment  String           @map("scheduled_employment") @db.VarChar(150)
+  skillCategory        SkillCategory    @map("skill_category")
+  dailyWagePaise       Int              @map("daily_wage_paise")
+  effectiveDate        DateTime         @map("effective_date") @db.Date
+  notificationRef      String           @map("notification_ref") @db.VarChar(150)
+  authorityName        String           @map("authority_name") @db.VarChar(150)
+  sourceUrl            String           @map("source_url") @db.Text
+  isActive             Boolean          @default(true) @map("is_active")
+  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@index([stateCode, skillCategory, isActive])
+  @@map("minimum_wage_benchmarks")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  workerId   String?  @map("worker_id") @db.Uuid
+  actorType  String   @map("actor_type") @db.VarChar(20)
+  action     String   @db.VarChar(50)
+  entityType String   @map("entity_type") @db.VarChar(50)
+  entityId   String   @map("entity_id") @db.Uuid
+  oldState   Json?    @map("old_state")
+  newState   Json?    @map("new_state")
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  worker     Worker?  @relation(fields: [workerId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([workerId])
+  @@map("audit_logs")
+}
