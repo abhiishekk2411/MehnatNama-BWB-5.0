@@ -16,26 +16,31 @@ export function createApp() {
   // Cookie Parser for HttpOnly authentication cookies
   app.use(cookieParser());
 
-  // CORS Configuration - Support both localhost and 127.0.0.1
+  // CORS Configuration - Support localhost, 127.0.0.1 and production origin
   const allowedOrigins = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
     'http://localhost:3000',
     env.CORS_ORIGIN,
-  ];
+  ].filter(Boolean);
 
   app.use(
     cors({
       origin: (origin, callback) => {
+        // Allow requests with no origin (mobile apps, curl) or allowed origins
         if (!origin || allowedOrigins.includes(origin) || origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
           callback(null, true);
-        } else {
+        } else if (env.NODE_ENV === 'production' && allowedOrigins.includes(origin)) {
           callback(null, true);
+        } else if (env.NODE_ENV !== 'production') {
+          callback(null, true);
+        } else {
+          callback(new Error('CORS policy: Not allowed by Access-Control-Allow-Origin'));
         }
       },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     })
   );
 
@@ -58,13 +63,27 @@ export function createApp() {
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true }));
 
-  // Root & Health Check Info
+  // Root Info
   app.get('/', (_req, res) => {
     res.json({
       name: 'MehnatNama (मेहनतनामा) API',
       tagline: 'Har din ka kaam. Har rupaye ka hisaab.',
       version: '1.0.0',
       status: 'operational',
+    });
+  });
+
+  // Dedicated Health Check endpoint for Render/Railway/Kubernetes
+  app.get('/health', (_req, res) => {
+    res.status(200).json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      uptimeSeconds: Math.floor(process.uptime()),
+      environment: env.NODE_ENV,
+      memoryUsage: {
+        heapUsedMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+        rssMb: Math.round(process.memoryUsage().rss / 1024 / 1024),
+      },
     });
   });
 
