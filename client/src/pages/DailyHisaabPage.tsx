@@ -4,6 +4,9 @@ import { SectionHeader } from '../components/common/SectionHeader';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { jobService } from '../services/jobService';
 import { workdayService, type CreateWorkDayDto, type UpdateWorkDayDto } from '../services/workdayService';
+import { OfflineStorage } from '../services/offlineStorage';
+import { useOffline } from '../context/OfflineContext';
+import { VoiceInput } from '../components/common/VoiceInput';
 import type { Job, WorkDay, WorkDaySummary, WorkDayStatus } from '../types';
 import {
   CalendarCheck,
@@ -53,17 +56,31 @@ export const DailyHisaabPage: React.FC = () => {
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
-  // Fetch jobs
+  // Contexts
+  const { isOnline, refreshPending } = useOffline();
+
+  // Fetch jobs (with offline cache support)
   useEffect(() => {
     async function loadJobs() {
       try {
-        const jobs = await jobService.getJobs();
+        let jobs: Job[] = [];
+        if (navigator.onLine) {
+          try {
+            jobs = await jobService.getJobs();
+            await OfflineStorage.cacheJobs(jobs);
+          } catch {
+            jobs = await OfflineStorage.getCachedJobs();
+          }
+        } else {
+          jobs = await OfflineStorage.getCachedJobs();
+        }
+
         const active = jobs.filter((j) => j.status === 'ACTIVE');
         setActiveJobs(active);
         if (active.length > 0 && !selectedJobId) {
           setSelectedJobId(active[0].id);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Failed to load jobs:', err);
       }
     }
@@ -133,13 +150,51 @@ export const DailyHisaabPage: React.FC = () => {
         note: note.trim() || undefined,
       };
 
-      await workdayService.recordWorkday(payload);
-      setFormSuccess(
-        `हाजिरी दर्ज हो गई! (Attendance logged: ₹${(calculatedWagePaise / 100).toLocaleString('en-IN')})`
-      );
-      setNote('');
-      setOvertimeMinutes(0);
-      fetchData();
+      if (!isOnline) {
+        // Direct offline entry to IndexedDB
+        await OfflineStorage.addPendingWorkday({
+          jobId: selectedJobId,
+          jobTitle: selectedJob?.jobTitle,
+          contractorName: selectedJob?.contractorName,
+          workDate,
+          status,
+          overtimeMinutes: Number(overtimeMinutes) || 0,
+          note: note.trim(),
+        });
+        await refreshPending();
+        setFormSuccess('ऑफ़लाइन हाजिरी सुरक्षित! इंटरनेट मिलने पर अपने आप सिंक हो जाएगी।');
+        setNote('');
+        setOvertimeMinutes(0);
+      } else {
+        try {
+          await workdayService.recordWorkday(payload);
+          setFormSuccess(
+            `हाजिरी दर्ज हो गई! (Attendance logged: ₹${(calculatedWagePaise / 100).toLocaleString('en-IN')})`
+          );
+          setNote('');
+          setOvertimeMinutes(0);
+          fetchData();
+        } catch (serverErr: any) {
+          // If network drop or server unreachable, seamlessly enqueue offline
+          if (!window.navigator.onLine || serverErr.message?.includes('Failed to fetch') || serverErr.message?.includes('NetworkError')) {
+            await OfflineStorage.addPendingWorkday({
+              jobId: selectedJobId,
+              jobTitle: selectedJob?.jobTitle,
+              contractorName: selectedJob?.contractorName,
+              workDate,
+              status,
+              overtimeMinutes: Number(overtimeMinutes) || 0,
+              note: note.trim(),
+            });
+            await refreshPending();
+            setFormSuccess('नेटवर्क समस्या के कारण ऑफ़लाइन सुरक्षित किया गया। बाद में सिंक होगा।');
+            setNote('');
+            setOvertimeMinutes(0);
+          } else {
+            throw serverErr;
+          }
+        }
+      }
 
       setTimeout(() => {
         setFormSuccess(null);
@@ -401,9 +456,11 @@ export const DailyHisaabPage: React.FC = () => {
 
                 {/* Note / Task Description */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Work Note / Details <span className="font-devanagari text-gray-500">(काम का विवरण)</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-medium text-gray-700">
+                      Work Note / Details <span className="font-devanagari text-gray-500">(काम का विवरण)</span>
+                    </label>
+                  </div>
                   <input
                     type="text"
                     value={note}
@@ -411,6 +468,8 @@ export const DailyHisaabPage: React.FC = () => {
                     placeholder="e.g. 3rd floor slab casting, plaster work..."
                     className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-forest focus:border-forest"
                   />
+                  {/* Experimental Hindi Voice Input */}
+                  <VoiceInput onTranscript={(text) => setNote(text)} currentValue={note} />
                 </div>
 
                 {/* Submit Button */}
