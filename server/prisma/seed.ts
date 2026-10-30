@@ -7,6 +7,9 @@ import {
   SkillCategory,
   SkillLevel,
   EmploymentSphere,
+  ConfirmationStatus,
+  ConfirmationResponseType,
+  DisputeReason,
 } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
@@ -294,10 +297,177 @@ async function main() {
     console.log(`✓ Seeded payments & advances totaling ₹8,000 (Net balance ₹4,000)`);
   }
 
-  console.log('--- Phase 3 Seeding Completed Successfully ---');
-  console.log('Test Credentials:');
-  console.log('  Mobile: 9876543210');
-  console.log('  PIN:    1234');
+  // 7. Seed Official Curated Minimum Wage Rules (Maharashtra & Central Sphere)
+  const existingRules = await prisma.minimumWageRule.count();
+  if (existingRules === 0) {
+    const rulesData = [
+      // Maharashtra - Building & Construction
+      {
+        state: 'Maharashtra',
+        zone: 'Zone I (Municipal Corp)',
+        employmentCategory: 'Building and Road Construction',
+        skillLevel: SkillLevel.UNSKILLED,
+        wagePeriod: 'DAILY',
+        baseRatePaise: 48200, // ₹482.00
+        variableAllowancePaise: 11800, // ₹118.00 VDA
+        effectiveFrom: new Date('2026-07-01'),
+        notificationDate: new Date('2026-06-25'),
+        sourceReference: 'Govt. of Maharashtra Gazette Notification CLA-2026/CR-45/LAB-7',
+        officialSourceUrl: 'https://mahakamgar.maharashtra.gov.in/minimum-wage.htm',
+        verificationStatus: 'VERIFIED',
+        verifiedAt: new Date(),
+      },
+      {
+        state: 'Maharashtra',
+        zone: 'Zone I (Municipal Corp)',
+        employmentCategory: 'Building and Road Construction',
+        skillLevel: SkillLevel.SEMI_SKILLED,
+        wagePeriod: 'DAILY',
+        baseRatePaise: 52400, // ₹524.00
+        variableAllowancePaise: 11800, // ₹118.00 VDA
+        effectiveFrom: new Date('2026-07-01'),
+        notificationDate: new Date('2026-06-25'),
+        sourceReference: 'Govt. of Maharashtra Gazette Notification CLA-2026/CR-45/LAB-7',
+        officialSourceUrl: 'https://mahakamgar.maharashtra.gov.in/minimum-wage.htm',
+        verificationStatus: 'VERIFIED',
+        verifiedAt: new Date(),
+      },
+      {
+        state: 'Maharashtra',
+        zone: 'Zone I (Municipal Corp)',
+        employmentCategory: 'Building and Road Construction',
+        skillLevel: SkillLevel.SKILLED,
+        wagePeriod: 'DAILY',
+        baseRatePaise: 56800, // ₹568.00
+        variableAllowancePaise: 11800, // ₹118.00 VDA (Total ₹686)
+        effectiveFrom: new Date('2026-07-01'),
+        notificationDate: new Date('2026-06-25'),
+        sourceReference: 'Govt. of Maharashtra Gazette Notification CLA-2026/CR-45/LAB-7',
+        officialSourceUrl: 'https://mahakamgar.maharashtra.gov.in/minimum-wage.htm',
+        verificationStatus: 'VERIFIED',
+        verifiedAt: new Date(),
+      },
+      // Central Sphere - Construction
+      {
+        state: 'Central Sphere',
+        zone: 'Area A (Metros)',
+        employmentCategory: 'Construction or Maintenance of Roads / Runways / Buildings',
+        skillLevel: SkillLevel.SKILLED,
+        wagePeriod: 'DAILY',
+        baseRatePaise: 63700, // ₹637.00
+        variableAllowancePaise: 25400, // ₹254.00 VDA (Total ₹891)
+        effectiveFrom: new Date('2026-10-01'),
+        notificationDate: new Date('2026-09-28'),
+        sourceReference: 'Ministry of Labour & Employment Notification No. S.O. 4235(E)',
+        officialSourceUrl: 'https://clc.gov.in/clc/min-wages',
+        verificationStatus: 'VERIFIED',
+        verifiedAt: new Date(),
+      },
+      {
+        state: 'Central Sphere',
+        zone: 'Area B (Urban)',
+        employmentCategory: 'Construction or Maintenance of Roads / Runways / Buildings',
+        skillLevel: SkillLevel.SKILLED,
+        wagePeriod: 'DAILY',
+        baseRatePaise: 53100, // ₹531.00
+        variableAllowancePaise: 21200, // ₹212.00 VDA (Total ₹743)
+        effectiveFrom: new Date('2026-10-01'),
+        notificationDate: new Date('2026-09-28'),
+        sourceReference: 'Ministry of Labour & Employment Notification No. S.O. 4235(E)',
+        officialSourceUrl: 'https://clc.gov.in/clc/min-wages',
+        verificationStatus: 'VERIFIED',
+        verifiedAt: new Date(),
+      },
+    ];
+
+    await prisma.minimumWageRule.createMany({
+      data: rulesData,
+    });
+    console.log(`✓ Seeded ${rulesData.length} authoritative statutory minimum wage benchmark rules`);
+  }
+
+  // 8. Seed a demo Contractor Confirmation Request with items & responses matching Part D
+  // (10 Confirmed, 2 Disputed, 3 Pending)
+  const existingReq = await prisma.contractorConfirmationRequest.findFirst({
+    where: { userId: user.id },
+  });
+
+  if (!existingReq && job1) {
+    const crypto = await import('crypto');
+    const demoRawToken = 'a1b2c3d4e5f67890123456789012345678901234567890123456789012345678';
+    const demoTokenHash = crypto.createHash('sha256').update(demoRawToken).digest('hex');
+
+    const demoReq = await prisma.contractorConfirmationRequest.create({
+      data: {
+        userId: user.id,
+        jobId: job1.id,
+        tokenHash: demoTokenHash,
+        expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days
+        status: ConfirmationStatus.PENDING,
+        title: 'Weekly Attendance Verification: Construction Site A (Fortnight 1)',
+        note: 'Please review and confirm attendance entries for plastering and mason work.',
+      },
+    });
+
+    const workDays = await prisma.workDay.findMany({
+      where: { jobId: job1.id },
+      take: 15,
+      orderBy: { workDate: 'asc' },
+    });
+
+    for (let idx = 0; idx < workDays.length; idx++) {
+      const wd = workDays[idx];
+      let itemStatus: ConfirmationStatus = ConfirmationStatus.PENDING;
+      if (idx < 10) itemStatus = ConfirmationStatus.CONFIRMED;
+      else if (idx < 12) itemStatus = ConfirmationStatus.DISPUTED;
+
+      const item = await prisma.confirmationItem.create({
+        data: {
+          requestId: demoReq.id,
+          workDayId: wd.id,
+          status: itemStatus,
+        },
+      });
+
+      if (itemStatus === ConfirmationStatus.CONFIRMED) {
+        await prisma.confirmationResponse.create({
+          data: {
+            itemId: item.id,
+            responseType: ConfirmationResponseType.CONFIRMED,
+            optionalComment: 'Work verified at site',
+          },
+        });
+      } else if (itemStatus === ConfirmationStatus.DISPUTED) {
+        await prisma.confirmationResponse.create({
+          data: {
+            itemId: item.id,
+            responseType: ConfirmationResponseType.DISPUTED,
+            disputeReason:
+              idx === 10 ? DisputeReason.INCORRECT_WORKDAY : DisputeReason.WORK_NOT_COMPLETED,
+            optionalComment:
+              idx === 10
+                ? 'Rain stoppage after 2 hours; half day calculated instead'
+                : 'Worker left early due to material shortage',
+          },
+        });
+      }
+    }
+
+    await prisma.confirmationAuditEvent.create({
+      data: {
+        requestId: demoReq.id,
+        eventType: 'REQUEST_CREATED',
+        metadata: { seeded: true, totalItems: workDays.length },
+      },
+    });
+
+    console.log(
+      `✓ Seeded demo contractor confirmation request with 10 Confirmed, 2 Disputed, 3 Pending items`
+    );
+    console.log(`  Demo Contractor Public Link: /contractor/confirm/${demoRawToken}`);
+  }
+
+  console.log('--- Phase 4 Database Setup & Seeding Completed ---');
 }
 
 main()

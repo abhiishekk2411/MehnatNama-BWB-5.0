@@ -12,9 +12,17 @@ import { ReportsPage } from '../pages/ReportsPage';
 import { KnowYourRightsPage } from '../pages/KnowYourRightsPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 
+import { ContractorConfirmPage } from '../pages/public/ContractorConfirmPage';
+import { PublicSharedReportPage } from '../pages/public/PublicSharedReportPage';
+
 export const AppRoutes: React.FC = () => {
   return (
     <Routes>
+      {/* Public Standalone Portals (Zero-Login) */}
+      <Route path="/contractor/confirm/:token" element={<ContractorConfirmPage />} />
+      <Route path="/shared/report/:token" element={<PublicSharedReportPage />} />
+
+      {/* Main Authenticated Application */}
       <Route path="/" element={<AppLayout />}>
         {/* Core application routes */}
         <Route index element={<HomePage />} />

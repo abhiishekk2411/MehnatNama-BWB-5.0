@@ -194,6 +194,225 @@ export interface MinimumWageBenchmark {
   isActive: boolean;
 }
 
+export interface ContractorConfirmationRequest {
+  id: string;
+  userId: string;
+  jobId: string;
+  tokenHash?: string;
+  expiresAt: string;
+  revokedAt?: string | null;
+  status: 'PENDING' | 'CONFIRMED' | 'DISPUTED' | 'EXPIRED' | 'REVOKED';
+  title?: string | null;
+  note?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  job?: Job;
+  items?: ConfirmationItem[];
+  auditEvents?: Array<{
+    id: string;
+    eventType: string;
+    createdAt: string;
+    metadata?: any;
+  }>;
+}
+
+export interface ConfirmationItem {
+  id: string;
+  requestId: string;
+  workDayId: string;
+  status: 'PENDING' | 'CONFIRMED' | 'DISPUTED';
+  workDay?: WorkDay;
+  responses?: Array<{
+    id: string;
+    responseType: 'CONFIRMED' | 'DISPUTED';
+    disputeReason?: string | null;
+    optionalComment?: string | null;
+    submittedAt: string;
+  }>;
+}
+
+export interface MinimumWageRule {
+  id: string;
+  state: string;
+  zone: string;
+  employmentCategory: string;
+  skillLevel: SkillLevel;
+  wagePeriod: string;
+  baseRatePaise: number;
+  variableAllowancePaise: number;
+  effectiveFrom: string;
+  effectiveTo?: string | null;
+  notificationDate: string;
+  officialSourceUrl: string;
+  sourceReference: string;
+  verificationStatus: string;
+  verifiedAt?: string | null;
+}
+
+export interface WageComparisonResult {
+  matched: boolean;
+  message?: string;
+  jobTitle?: string;
+  comparisonDate?: string;
+  rule?: {
+    id: string;
+    state: string;
+    zone: string;
+    employmentCategory: string;
+    skillLevel: SkillLevel;
+    baseRatePaise: number;
+    variableAllowancePaise: number;
+    totalBenchmarkDailyRatePaise: number;
+    totalBenchmarkDailyRateRupees: number;
+    effectiveFrom: string;
+    notificationDate: string;
+    sourceReference: string;
+    officialSourceUrl: string;
+  };
+  worker?: {
+    agreedDailyRatePaise: number;
+    agreedDailyRateRupees: number;
+    daysCount: number;
+  };
+  comparison?: {
+    differencePerDayPaise: number;
+    differencePerDayRupees: number;
+    cumulativeDifferencePaise: number;
+    cumulativeDifferenceRupees: number;
+    isBelowBenchmark: boolean;
+    status: string;
+    hindiStatus: string;
+  };
+  disclaimer: string;
+}
+
+export interface RightsGuide {
+  id: string;
+  category: string;
+  categoryHindi: string;
+  title: string;
+  titleHindi: string;
+  summary: string;
+  summaryHindi: string;
+  keyPoints: string[];
+  keyPointsHindi: string[];
+  officialReference: string;
+  officialSourceUrl: string;
+  lastReviewedDate: string;
+}
+
+export interface EscalationResource {
+  id: string;
+  stepNumber: number;
+  title: string;
+  titleHindi: string;
+  description: string;
+  descriptionHindi: string;
+  authorityName: string;
+  contactDetails: {
+    helpline?: string;
+    portalUrl?: string;
+    address?: string;
+  };
+  officialSourceUrl: string;
+  actionGuidance: string;
+  actionGuidanceHindi: string;
+}
+
+export interface ReportData {
+  reportId: string;
+  generatedAt: string;
+  language: 'hi' | 'en';
+  branding: {
+    product: string;
+    tagline: string;
+    reportTitle: string;
+  };
+  worker: {
+    fullName: string;
+    phone: string;
+    workerType: string;
+    skillLevel: string;
+  };
+  dateRange: {
+    startDate: string;
+    endDate: string;
+  };
+  summary: {
+    totalWorkingDays: number;
+    fullDays: number;
+    halfDays: number;
+    absentDays: number;
+    totalEarnedPaise: number;
+    totalEarnedRupees: number;
+    totalPaymentsPaise: number;
+    totalPaymentsRupees: number;
+    totalAdvancesPaise: number;
+    totalAdvancesRupees: number;
+    totalReceiptsPaise: number;
+    totalReceiptsRupees: number;
+    netRecordedBalancePaise: number;
+    netRecordedBalanceRupees: number;
+    confirmedDays: number;
+    disputedDays: number;
+    pendingDays: number;
+  };
+  benchmarkReference?: {
+    state: string;
+    category: string;
+    ratePerDayRupees: number;
+    notificationRef: string;
+    officialSource: string;
+  } | null;
+  jobs: Array<{
+    id: string;
+    jobTitle: string;
+    contractorName: string;
+    contractorPhone: string;
+    workLocation?: string | null;
+    agreedDailyRatePaise: number;
+    workDays: Array<{
+      id: string;
+      workDate: string;
+      status: string;
+      dailyRateSnapshotPaise: number;
+      earnedAmountPaise: number;
+      overtimeMinutes: number;
+      note?: string | null;
+      confirmationStatus: string;
+      disputeReason?: string | null;
+    }>;
+    ledgerEntries: Array<{
+      id: string;
+      type: string;
+      amountPaise: number;
+      paymentDate: string;
+      paymentMode: string;
+      note?: string | null;
+    }>;
+    totals: {
+      jobEarnedPaise: number;
+      jobPaymentsPaise: number;
+      jobAdvancesPaise: number;
+      jobReceiptsPaise: number;
+      jobBalanceDuePaise: number;
+    };
+  }>;
+  disclaimer: string;
+}
+
+export interface SharedReportAccess {
+  id: string;
+  userId: string;
+  jobId?: string | null;
+  helperName?: string | null;
+  expiresAt: string;
+  revokedAt?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  createdAt: string;
+}
+
 export interface ApiResponse<T = unknown> {
   data?: T;
   success: boolean;
@@ -214,4 +433,14 @@ export interface ApiResponse<T = unknown> {
   entries?: LedgerEntry[];
   entry?: LedgerEntry;
   activities?: DashboardActivityItem[];
+  requests?: ContractorConfirmationRequest[];
+  request?: ContractorConfirmationRequest;
+  shareUrl?: string;
+  rules?: MinimumWageRule[];
+  rule?: MinimumWageRule;
+  report?: ReportData;
+  guides?: RightsGuide[];
+  resources?: EscalationResource[];
+  accesses?: SharedReportAccess[];
+  access?: SharedReportAccess;
 }

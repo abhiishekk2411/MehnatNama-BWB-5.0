@@ -126,7 +126,7 @@ MehnatNama is structured around clear, incremental, and demonstrable milestones.
 
 ---
 
-### Phase 4: Wage Rights, Verification and Reporting [PLANNED]
+### Phase 4: Wage Rights, Verification and Reporting [COMPLETED]
 **Goal:** Empower workers with cryptographic contractor verification links, dispute management, statutory minimum wage comparison, and print-ready PDF statements.
 
 #### Tasks & Modules:
@@ -135,7 +135,7 @@ MehnatNama is structured around clear, incremental, and demonstrable milestones.
    - Immutable snapshot serialization of timesheet and payments.
    - Expiration window (14-day validity) and tamper-proof SHA-256 verification hash.
 2. **Contractor Confirm/Dispute Workflow:**
-   - Zero-login, mobile-responsive public review portal for contractors.
+   - Zero-login, mobile-responsive public review portal for contractors (`/contractor/confirm/:token`).
    - 1-click confirmation ("Sab Sahi Hai") which marks records as verified and locks entries.
    - Line-item dispute workflow ("Kucch Galat Hai") with standardized dispute reasons (Absent, Partial Day, Advance mismatch).
    - Full acknowledgement history and contractor digital audit trail (timestamp, IP).
@@ -145,19 +145,20 @@ MehnatNama is structured around clear, incremental, and demonstrable milestones.
    - Real-time wage comparison displaying daily wage difference and cumulative wage loss.
    - Transparent legal awareness disclaimers preventing misrepresentation.
 4. **PDF Reports & WhatsApp Sharing:**
-   - Print-ready and downloadable PDF "MehnatNama" statement generator.
+   - Print-ready and downloadable PDF "MehnatNama" statement generator (`/reports`).
    - Worker profile, contractor info, attendance ledger, payment register, and verification stamps.
    - 1-click WhatsApp share button with pre-formatted bilingual message and link.
 5. **Know Your Rights & Escalation Directory:**
-   - Simplified explainers on Payment of Wages Act, Minimum Wages Act, and Code on Wages.
+   - Simplified explainers on Payment of Wages Act, Minimum Wages Act, and Code on Wages (`/know-your-rights`).
    - Verified official escalation directory: District Labour Officers (DLO), national toll-free helpline (14434), and Shram Suvidha portal.
-   - Optional helper/volunteer access for assisted literacy.
+   - Optional helper/volunteer access for assisted literacy (`/shared/report/:token`).
 
 #### Quality & Testing Milestones:
-- Contractor review link opens smoothly on mobile without login requirements.
-- Confirmed records display green verified checkmarks across worker dashboard.
-- Disputed entries clearly display contractor feedback.
-- PDF generation creates crisp, formatted bilingual statement with matching figures.
+- [x] Contractor review link opens smoothly on mobile without login requirements.
+- [x] Confirmed records display green verified checkmarks across worker dashboard.
+- [x] Disputed entries clearly display contractor feedback.
+- [x] PDF generation creates crisp, formatted bilingual statement with matching figures.
+- [x] Verified by automated integration suite (12/12 passing) and browser subagent recording.
 
 ---
 
