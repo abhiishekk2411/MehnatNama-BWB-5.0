@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import { Sidebar, mainNavItems, supportNavItems } from './Sidebar';
 import { Topbar } from './Topbar';
+import { MobileBottomNav } from './MobileBottomNav';
+import { OfflineStatusBar } from '../offline/OfflineStatusBar';
+import { InstallPwaPrompt } from '../pwa/InstallPwaPrompt';
 import { BrandLogo } from '../common/BrandLogo';
 import { X, HelpCircle, Settings } from 'lucide-react';
 
@@ -11,6 +14,9 @@ export const AppLayout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-surface flex flex-col text-ink-primary font-sans">
+      {/* Offline Status & Sync Queue Bar */}
+      <OfflineStatusBar />
+
       {/* Desktop Persistent Sidebar */}
       <Sidebar collapsed={desktopCollapsed} />
 
@@ -128,22 +134,37 @@ export const AppLayout: React.FC = () => {
                     );
                   })}
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      alert('Settings configuration view');
-                    }}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-ink-secondary hover:bg-forest-soft/70 hover:text-forest text-left"
+                  <NavLink
+                    to="/settings"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors ${
+                        isActive
+                          ? 'bg-forest text-white shadow-subtle'
+                          : 'text-ink-secondary hover:bg-forest-soft/70 hover:text-forest'
+                      }`
+                    }
                   >
-                    <Settings className="h-4.5 w-4.5 shrink-0 text-ink-secondary" />
-                    <div>
-                      <span>Settings</span>
-                      <span className="text-[10px] block font-normal font-hindi text-ink-muted">
-                        सेटिंग्स
-                      </span>
-                    </div>
-                  </button>
+                    {({ isActive }) => (
+                      <>
+                        <Settings
+                          className={`h-4.5 w-4.5 shrink-0 ${
+                            isActive ? 'text-white' : 'text-ink-secondary'
+                          }`}
+                        />
+                        <div>
+                          <span>Settings</span>
+                          <span
+                            className={`text-[10px] block font-normal font-hindi ${
+                              isActive ? 'text-forest-100' : 'text-ink-muted'
+                            }`}
+                          >
+                            सेटिंग्स व रिमाइंडर
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </NavLink>
                 </nav>
               </div>
             </div>
@@ -178,11 +199,17 @@ export const AppLayout: React.FC = () => {
           onToggleDesktopCollapse={() => setDesktopCollapsed(!desktopCollapsed)}
         />
 
-        {/* Dynamic Page Outlet */}
-        <main className="flex-1 pb-12">
+        {/* Dynamic Page Outlet with bottom padding on mobile for MobileBottomNav */}
+        <main className="flex-1 pb-20 lg:pb-12">
           <Outlet />
         </main>
       </div>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <MobileBottomNav />
+
+      {/* Install PWA Prompt Banner */}
+      <InstallPwaPrompt />
     </div>
   );
 };

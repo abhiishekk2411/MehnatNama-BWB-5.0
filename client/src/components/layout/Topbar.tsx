@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import {
   Menu,
   Bell,
@@ -7,8 +7,10 @@ import {
   Check,
   PanelLeftClose,
   PanelLeftOpen,
+  Settings,
 } from 'lucide-react';
 import { ProfileMenu } from '../common/ProfileMenu';
+import { useLanguage } from '../../context/LanguageContext';
 
 export interface TopbarProps {
   onToggleMobileMenu: () => void;
@@ -28,6 +30,7 @@ const routeTitleMap: Record<string, { title: string; hindi: string }> = {
   '/confirmations': { title: 'Contractor Confirmations', hindi: 'ठेकेदार सत्यापन' },
   '/reports': { title: 'My Reports & PDF', hindi: 'हिसाब पर्चा' },
   '/know-your-rights': { title: 'Know Your Rights', hindi: 'श्रमिक अधिकार' },
+  '/settings': { title: 'Settings', hindi: 'सेटिंग्स व रिमाइंडर' },
 };
 
 export const Topbar: React.FC<TopbarProps> = ({
@@ -42,8 +45,7 @@ export const Topbar: React.FC<TopbarProps> = ({
     hindi: 'मेहनतनामा',
   };
 
-  // Language state (English / Hindi toggle)
-  const [currentLang, setCurrentLang] = useState<'hi' | 'en'>('hi');
+  const { language, setLanguage } = useLanguage();
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
 
@@ -125,7 +127,7 @@ export const Topbar: React.FC<TopbarProps> = ({
             aria-label="Change language"
           >
             <Languages className="h-4 w-4 text-forest" />
-            <span className="font-semibold">{currentLang === 'hi' ? 'हिंदी' : 'English'}</span>
+            <span className="font-semibold">{language === 'hi' ? 'हिंदी' : 'English'}</span>
           </button>
 
           {langMenuOpen && (
@@ -133,33 +135,33 @@ export const Topbar: React.FC<TopbarProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  setCurrentLang('hi');
+                  setLanguage('hi');
                   setLangMenuOpen(false);
                 }}
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                  currentLang === 'hi'
+                  language === 'hi'
                     ? 'bg-forest-soft text-forest font-bold'
                     : 'text-ink-primary hover:bg-surface'
                 }`}
               >
                 <span>हिंदी (Hindi)</span>
-                {currentLang === 'hi' && <Check className="h-3.5 w-3.5" />}
+                {language === 'hi' && <Check className="h-3.5 w-3.5" />}
               </button>
 
               <button
                 type="button"
                 onClick={() => {
-                  setCurrentLang('en');
+                  setLanguage('en');
                   setLangMenuOpen(false);
                 }}
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                  currentLang === 'en'
+                  language === 'en'
                     ? 'bg-forest-soft text-forest font-bold'
                     : 'text-ink-primary hover:bg-surface'
                 }`}
               >
                 <span>English</span>
-                {currentLang === 'en' && <Check className="h-3.5 w-3.5" />}
+                {language === 'en' && <Check className="h-3.5 w-3.5" />}
               </button>
             </div>
           )}
@@ -215,6 +217,16 @@ export const Topbar: React.FC<TopbarProps> = ({
             </div>
           )}
         </div>
+
+        {/* Settings Action */}
+        <Link
+          to="/settings"
+          className="p-2 rounded-xl text-ink-secondary hover:text-ink-primary hover:bg-surface border border-transparent hover:border-borderNeutral transition-colors"
+          title="Settings & Preferences (सेटिंग्स)"
+          aria-label="Settings"
+        >
+          <Settings className="h-4.5 w-4.5" />
+        </Link>
 
         {/* Worker Profile Dropdown */}
         <ProfileMenu />

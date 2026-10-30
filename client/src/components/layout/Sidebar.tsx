@@ -210,26 +210,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
               })}
 
               {/* Settings Action Item */}
-              <button
-                type="button"
-                onClick={() => alert('Settings configuration view')}
+              <NavLink
+                to="/settings"
                 title={collapsed ? 'Settings (सेटिंग्स)' : undefined}
-                className={`w-full group flex items-center rounded-xl transition-all duration-150 cursor-pointer ${
-                  collapsed
-                    ? 'justify-center p-2.5 text-center'
-                    : 'gap-3 px-3 py-2.5 text-xs font-semibold text-left'
-                } text-ink-secondary hover:bg-forest-soft/70 hover:text-forest`}
+                className={({ isActive }) =>
+                  `w-full group flex items-center rounded-xl transition-all duration-150 ${
+                    collapsed
+                      ? 'justify-center p-2.5 text-center'
+                      : 'gap-3 px-3 py-2.5 text-xs font-semibold'
+                  } ${
+                    isActive
+                      ? 'bg-forest text-white shadow-subtle'
+                      : 'text-ink-secondary hover:bg-forest-soft/70 hover:text-forest'
+                  }`
+                }
               >
-                <Settings className="h-4.5 w-4.5 shrink-0 text-ink-secondary group-hover:text-forest" />
-                {!collapsed && (
-                  <div className="truncate">
-                    <span className="block leading-snug">Settings</span>
-                    <span className="text-[10px] block font-normal font-hindi text-ink-muted group-hover:text-forest-dark">
-                      सेटिंग्स
-                    </span>
-                  </div>
+                {({ isActive }) => (
+                  <>
+                    <Settings
+                      className={`h-4.5 w-4.5 shrink-0 transition-colors ${
+                        isActive ? 'text-white' : 'text-ink-secondary group-hover:text-forest'
+                      }`}
+                    />
+                    {!collapsed && (
+                      <div className="truncate">
+                        <span className="block leading-snug">Settings</span>
+                        <span
+                          className={`text-[10px] block font-normal font-hindi ${
+                            isActive ? 'text-forest-100' : 'text-ink-muted group-hover:text-forest-dark'
+                          }`}
+                        >
+                          सेटिंग्स
+                        </span>
+                      </div>
+                    )}
+                  </>
                 )}
-              </button>
+              </NavLink>
             </nav>
           </div>
         </div>
