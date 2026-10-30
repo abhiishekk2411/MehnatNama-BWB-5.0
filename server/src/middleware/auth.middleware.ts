@@ -3,14 +3,18 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import { prisma } from '../config/database.js';
 import { UnauthorizedError } from '../utils/errors.js';
-import { Worker } from '@prisma/client';
+import type { User, WorkerProfile } from '@prisma/client';
+
+export interface AuthenticatedUser extends Omit<User, 'pinHash'> {
+  profile: WorkerProfile | null;
+}
 
 export interface AuthenticatedRequest extends Request {
-  worker?: Omit<Worker, 'passwordHash'>;
+  user?: AuthenticatedUser;
 }
 
 interface JwtPayload {
-  workerId: string;
+  userId: string;
 }
 
 export async function authMiddleware(
@@ -19,41 +23,42 @@ export async function authMiddleware(
   next: NextFunction
 ): Promise<void> {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedError('Authentication token missing or invalid format');
+    let token: string | undefined;
+
+    // 1. Check HttpOnly cookie first
+    if (req.cookies && req.cookies.mehnatnama_token) {
+      token = req.cookies.mehnatnama_token;
     }
 
-    const token = authHeader.split(' ')[1];
-    let decoded: JwtPayload;
+    // 2. Fall back to Authorization: Bearer <token>
+    if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
 
+    if (!token) {
+      throw new UnauthorizedError('Authentication required. Please login with your mobile and PIN.');
+    }
+
+    let decoded: JwtPayload;
     try {
       decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
     } catch {
-      throw new UnauthorizedError('Invalid or expired authentication token');
+      throw new UnauthorizedError('Invalid or expired authentication session. Please login again.');
     }
 
-    const worker = await prisma.worker.findUnique({
-      where: { id: decoded.workerId },
-      select: {
-        id: true,
-        phone: true,
-        email: true,
-        fullName: true,
-        trade: true,
-        stateCode: true,
-        district: true,
-        preferredLang: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      include: { profile: true },
     });
 
-    if (!worker) {
-      throw new UnauthorizedError('Worker account no longer exists');
+    if (!user) {
+      throw new UnauthorizedError('Worker account not found.');
     }
 
-    req.worker = worker as unknown as Omit<Worker, 'passwordHash'>;
+    // Remove sensitive pinHash from attached user
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { pinHash: _pinHash, ...safeUser } = user;
+    req.user = safeUser;
     next();
   } catch (error) {
     next(error);
